@@ -1,9 +1,15 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "WigaWindowSize.h"
 
 namespace
 {
     double nowMs() { return juce::Time::getMillisecondCounterHiRes(); }
+
+    // tailles du menu Plugin size, en facteur de la taille par défaut d'origine (391 x 493 = « 60 % »)
+    constexpr int kNumSizes = 3;
+    const float kSizeFactors[kNumSizes] = { 1.0f, 1.25f, 1.6667f };   // 60 %, 75 %, 100 %
+    const char* const kSizeLabels[kNumSizes] = { "60 %", "75 %", "100 %" };
 
     const juce::Colour kInk     { 0xffd9dadc };
     const juce::Colour kInkDim  { 0xff8d8f94 };
@@ -214,6 +220,11 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     if (auto* c = getConstrainer())
         c->setFixedAspectRatio ((double) defW / (double) defH);
     setSize (defW, defH);
+    // taille des nouvelles fenêtres : celle choisie dans le menu « Default size (new windows) »
+    {
+        const float f = kSizeFactors[WigaWindowSize::defaultIndex (JucePlugin_Name, kNumSizes)];
+        setSize (juce::roundToInt (defW * f), juce::roundToInt (defH * f));
+    }
 
     const auto e = proc.getEffective();
     if (e.on) led[0] = 1.0f;
@@ -750,17 +761,27 @@ void SemitonesEditor::showMenu (Hit h)
         midi.addItem (id++, "Reset MIDI to defaults (nothing assigned)");
         m.addSubMenu ("MIDI", midi);
     }
-    m.addSectionHeader ("Window size");
-    // même menu que les autres pédales : 60 % (taille par défaut), 75 %, 100 %
-    const float szs[] = { 1.0f, 1.25f, 1.6667f };
-    const char* const szLabels[] = { "60 % (default)", "75 %", "100 %" };
-    for (int k = 0; k < 3; ++k)
     {
-        const float sz = szs[k];
-        acts[id] = { 6, MidiTarget::count, sz };
-        const int w = juce::roundToInt (Layout::defaultW * sz);
-        const bool cur = std::abs (getWidth() - w) < 2;
-        m.addItem (id++, szLabels[k], true, cur);
+        // Plugin size : taille de cette fenêtre + taille par défaut des nouvelles fenêtres (comme Octopus)
+        // même liste que les autres pédales : 60 % (taille par défaut d'origine), 75 %, 100 %
+        const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, kNumSizes);
+        juce::PopupMenu sizes, defSizes;
+        sizes.setLookAndFeel (&look);
+        defSizes.setLookAndFeel (&look);
+        for (int k = 0; k < kNumSizes; ++k)
+        {
+            const float sz = kSizeFactors[k];
+            const int w = juce::roundToInt (Layout::defaultW * sz);
+            const bool cur = std::abs (getWidth() - w) < 2;
+            acts[id] = { 6, MidiTarget::count, sz };
+            sizes.addItem (id++, juce::String (kSizeLabels[k]) + (k == def ? "  (default)" : ""), true, cur);
+            acts[id] = { 8, MidiTarget::count, (float) k };
+            defSizes.addItem (id++, kSizeLabels[k], true, k == def);
+        }
+        sizes.addSeparator();
+        sizes.addSubMenu ("Default size (new windows)", defSizes);
+        m.addSeparator();
+        m.addSubMenu ("Plugin size", sizes);
     }
 
     juce::Component::SafePointer<SemitonesEditor> safe (this);
@@ -783,6 +804,14 @@ void SemitonesEditor::showMenu (Hit h)
                 case 5: pr.learnTarget.store (-1); break;
                 case 7: pr.resetMidiMap(); break;
                 case 6: safe->setSize (juce::roundToInt (Layout::defaultW * a.size), juce::roundToInt (Layout::defaultH * a.size)); break;
+                case 8:
+                {
+                    const int k = juce::jlimit (0, kNumSizes - 1, (int) a.size);
+                    WigaWindowSize::setDefaultIndex (JucePlugin_Name, k);   // toutes les nouvelles fenêtres de ce plugin
+                    const float sz = kSizeFactors[k];                       // et cette fenêtre tout de suite
+                    safe->setSize (juce::roundToInt (Layout::defaultW * sz), juce::roundToInt (Layout::defaultH * sz));
+                    break;
+                }
                 default: break;
             }
         });
