@@ -339,15 +339,15 @@ def part(lang):
     ]:
         s.append(B(T(en, fr)))
     s.append(Spacer(1, 5))
-    rows = [[T('Control (MIDI Learn name)', 'Commande (nom du MIDI Learn)'), T('Default CC', 'CC par défaut'), 'Type'],
-            [T('Footswitch (on / bypass)', 'Footswitch (on / bypass)'), T('none', 'aucun'), T('Footswitch, latching by default (CC &gt;= 64 = on) or momentary (each press toggles).', 'Footswitch, à accrochage par défaut (CC &gt;= 64 = marche) ou momentané (chaque appui bascule).')],
-            ['FAV', T('none', 'aucun'), T('Footswitch, momentary by default (like a non-latching switch on the FAV jack) or latching.', 'Footswitch, momentané par défaut (comme un switch non verrouillable sur le jack FAV) ou à accrochage.')],
-            ['MIX mode', T('none', 'aucun'), T('Switch, latching by default or momentary.', 'Bascule, à accrochage par défaut ou momentanée.')],
-            ['Right arrow (+1 st)', T('none', 'aucun'), T('Trigger: +1 semitone each time the CC goes over 64.', 'Déclencheur : +1 demi-ton à chaque passage du CC au-dessus de 64.')],
-            ['Left arrow (-1 st)', T('none', 'aucun'), T('Trigger: -1 semitone each time the CC goes over 64.', 'Déclencheur : -1 demi-ton à chaque passage du CC au-dessus de 64.')],
-            ['Pitch (expression)', T('none', 'aucun'), T('Continuous, 25 steps: heel = -12, toe = +12 (14-bit accepted).', 'Continu, 25 pas : talon = -12, pointe = +12 (14 bits accepté).')],
-            ['Mix (expression)', T('none', 'aucun'), T('Continuous 0-100 %; moving it also turns MIX mode on (14-bit accepted).', 'Continu 0-100 % ; le bouger active aussi le mode MIX (14 bits accepté).')]]
-    s.append(table(rows, [46 * mm, 22 * mm, CW - 68 * mm]))
+    rows = [[T('Control (MIDI Learn name)', 'Commande (nom du MIDI Learn)'), 'Type'],
+            [T('Footswitch (on / bypass)', 'Footswitch (on / bypass)'), T('Footswitch, latching by default (CC &gt;= 64 = on) or momentary (each press toggles).', 'Footswitch, à accrochage par défaut (CC &gt;= 64 = marche) ou momentané (chaque appui bascule).')],
+            ['FAV', T('Footswitch, momentary by default (like a non-latching switch on the FAV jack) or latching.', 'Footswitch, momentané par défaut (comme un switch non verrouillable sur le jack FAV) ou à accrochage.')],
+            ['MIX mode', T('Switch, latching by default or momentary.', 'Bascule, à accrochage par défaut ou momentanée.')],
+            ['Right arrow (+1 st)', T('Trigger: +1 semitone each time the CC goes over 64.', 'Déclencheur : +1 demi-ton à chaque passage du CC au-dessus de 64.')],
+            ['Left arrow (-1 st)', T('Trigger: -1 semitone each time the CC goes over 64.', 'Déclencheur : -1 demi-ton à chaque passage du CC au-dessus de 64.')],
+            ['Pitch (expression)', T('Continuous, 25 steps: heel = -12, toe = +12 (14-bit accepted).', 'Continu, 25 pas : talon = -12, pointe = +12 (14 bits accepté).')],
+            ['Mix (expression)', T('Continuous 0-100 %; moving it also turns MIX mode on (14-bit accepted).', 'Continu 0-100 % ; le bouger active aussi le mode MIX (14 bits accepté).')]]
+    s.append(table(rows, [46 * mm, CW - 46 * mm]))
     s.append(Spacer(1, 6))
     s.append(P(T("Expression pedals are smooth: each new value is reached with a ramp lasting the time between two CC messages, then a 2-pole filter; "
                  "14-bit controllers (CC n + CC n+32) are supported. The pedal's travel is learned automatically, so 0 and 100 % are reached even if "
@@ -357,12 +357,18 @@ def part(lang):
                  "automatiquement : 0 et 100 % sont atteints même si elle n'envoie que 2 à 116.")))
 
     s.append(P(T('7. Window', '7. Fenêtre'), 'h1'))
-    s.append(P(T("Right-click anywhere &gt; <b>Window size</b>: <b>60 % (default)</b>, <b>75 %</b>, <b>100 %</b>, like the other Studio Wiga pedals. "
-                 "The window opens at the default size and can never be made smaller; you can also drag the bottom-right corner to enlarge it "
-                 "(aspect ratio kept).",
-                 "Clic droit n'importe où &gt; <b>Window size</b> : <b>60 % (default)</b>, <b>75 %</b>, <b>100 %</b>, comme les autres pédales Studio "
-                 "Wiga. La fenêtre s'ouvre à la taille par défaut et ne peut jamais être plus petite ; on peut aussi tirer le coin inférieur droit "
-                 "pour l'agrandir (proportions conservées).")))
+    s.append(P(T("Right-click anywhere &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b>, <b>100 %</b> resizes this window, like the other "
+                 "Studio Wiga pedals; <b>(default)</b> marks the default size you have chosen. At the bottom of this submenu, <b>Default size (new "
+                 "windows)</b> chooses the size at which every new Semitones window opens (one setting shared by all instances, saved on the "
+                 "computer); the open window also takes this size at once. The size is not saved with the project: each time it is opened, the "
+                 "window comes back at the default size (60 % until you choose another one). It can never be made smaller than 60 %; you can "
+                 "also drag the bottom-right corner to enlarge it (aspect ratio kept).",
+                 "Clic droit n'importe où &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b>, <b>100 %</b> redimensionne cette fenêtre, comme sur les "
+                 "autres pédales Studio Wiga ; <b>(default)</b> signale la taille par défaut choisie. En bas de ce sous-menu, <b>Default size (new "
+                 "windows)</b> choisit la taille d'ouverture de toutes les nouvelles fenêtres de Semitones (réglage commun à toutes les instances, "
+                 "enregistré sur l'ordinateur) ; la fenêtre ouverte prend aussi tout de suite cette taille. La taille n'est pas sauvegardée avec le "
+                 "projet : à chaque ouverture, la fenêtre revient à la taille par défaut (60 % tant que vous n'en avez pas choisi une autre). Elle ne "
+                 "peut jamais être réduite sous 60 % ; on peut aussi tirer le coin inférieur droit pour l'agrandir (proportions conservées).")))
     s.append(PageBreak())
     s.append(P(T('8. Presets', '8. Presets'), 'h1'))
     rows = [[T('Preset', 'Preset'), T('Pitch', 'Transp.'), 'MIX', T('Use', 'Usage')]]
@@ -399,7 +405,7 @@ def part(lang):
         ['Bypass', T('buffered, 6 ms crossfade', 'bufférisé, fondu de 6 ms')],
         ['MIDI', T('MIDI Learn on every control (nothing assigned by default), omni, latching / momentary switches, 14-bit CC, learned pedal travel; saved with the project',
                     'MIDI Learn sur chaque commande (rien d\'assigné par défaut), omni, switchs à accrochage / momentanés, CC 14 bits, course de pédale apprise ; enregistré avec le projet')],
-        [T('Window', 'Fenêtre'), T('60 % (default, minimum), 75 %, 100 %; corner resize', '60 % (défaut, minimum), 75 %, 100 % ; redimensionnement par le coin')],
+        [T('Window', 'Fenêtre'), T('Plugin size 60 % (minimum), 75 %, 100 %, default size of new windows to choose (60 % at first); corner resize', 'Plugin size 60 % (minimum), 75 %, 100 %, taille par défaut des nouvelles fenêtres au choix (60 % au départ) ; redimensionnement par le coin')],
         [T('Windows stability', 'Stabilité Windows'), T('anti-freeze v2: the audio thread never calls the host, window refresh driven by a timer with a watchdog',
                     "anti-gel v2 : le thread audio n'appelle jamais l'hôte, rafraîchissement de la fenêtre piloté par un timer avec chien de garde")],
     ], [42 * mm, CW - 42 * mm])]))

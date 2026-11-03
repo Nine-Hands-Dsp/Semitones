@@ -4,7 +4,7 @@ Réplique VST3 de la pédale **Solar Guitars CHUG Capo** : transposition de -12 
 
 ![Semitones](docs/screenshot.png)
 
-- Notice EN / FR : `docs/Semitones_Manual_EN-FR_v1.5.1.pdf`
+- Notice EN / FR : `docs/Semitones_Manual_EN-FR_v1.6.0.pdf`
 - Builds prêts à installer : onglet **Actions** > dernier run > artefacts `Semitones-VST3-Windows` / `Semitones-VST3-macOS`
 
 ## Fonctionnement (comme la pédale)
