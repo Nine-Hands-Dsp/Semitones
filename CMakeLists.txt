@@ -25,8 +25,8 @@ else()
 endif()
 
 juce_add_plugin(Semitones
-    COMPANY_NAME "Studio Wiga"
-    COMPANY_WEBSITE "https://github.com/studiowiga"
+    COMPANY_NAME "NINE HANDS | DSP"
+    COMPANY_WEBSITE "https://github.com/Nine-Hands-Dsp"
     PLUGIN_MANUFACTURER_CODE Stwg
     PLUGIN_CODE Smtn
     PRODUCT_NAME "Semitones"

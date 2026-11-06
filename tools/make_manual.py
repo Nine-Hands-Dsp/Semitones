@@ -33,7 +33,7 @@ def logo_png(path):
     ss = 4; Hh = 120 * ss
     r_out = Hh * 0.47; th = Hh * 0.15
     font = ImageFont.truetype(os.path.join(ROOT, 'assets', 'Poppins-Bold.ttf'), int(Hh * 0.78))
-    text = 'STUDIO WIGA'
+    text = 'NINE HANDS | DSP'
     tb = ImageDraw.Draw(Image.new('L', (8, 8))).textbbox((0, 0), text, font=font)
     rings_w = r_out * 2 * 1.62; gap = Hh * 0.42
     Ww = int(rings_w + gap + (tb[2] - tb[0]) + Hh * 0.2)
@@ -144,12 +144,12 @@ def normal_page(c, doc):
     c.saveState()
     c.setFillColor(ACC); c.rect(0, H - 2.2 * mm, W, 2.2 * mm, fill=1, stroke=0)
     c.setFont('Pop', 7.5); c.setFillColor(GREY)
-    c.drawString(18 * mm, 10 * mm, 'Semitones %s  ·  Studio Wiga' % VERSION)
+    c.drawString(18 * mm, 10 * mm, 'Semitones %s  ·  NINE HANDS | DSP' % VERSION)
     c.drawRightString(W - 18 * mm, 10 * mm, str(doc.page))
     c.restoreState()
 
 doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
-                      title='Semitones %s - User manual / Notice' % VERSION, author='Studio Wiga')
+                      title='Semitones %s - User manual / Notice' % VERSION, author='NINE HANDS | DSP')
 fr = Frame(18 * mm, 18 * mm, W - 36 * mm, H - 34 * mm, id='f')
 doc.addPageTemplates([
     PageTemplate(id='cover_en', frames=[fr], onPage=lambda c, d: cover_page(c, d, 'en')),
@@ -223,15 +223,15 @@ def part(lang):
                  "<b>macOS</b> : copiez <b>Semitones.vst3</b> dans <b>/Library/Audio/Plug-Ins/VST3</b> (ou ~/Library/Audio/Plug-Ins/VST3). "
                  "Si macOS le bloque, lancez <i>xattr -dr com.apple.quarantine</i> sur le paquet.")))
     s.append(B(T("<b>Reaper</b>: Options &gt; Preferences &gt; Plug-ins &gt; VST &gt; <i>Re-scan</i>. The plug-in appears as "
-                 "<b>Semitones (Studio Wiga)</b>.",
+                 "<b>Semitones (NINE HANDS | DSP)</b>.",
                  "<b>Reaper</b> : Options &gt; Préférences &gt; Plug-ins &gt; VST &gt; <i>Re-scan</i>. Le plugin apparaît sous le nom "
-                 "<b>Semitones (Studio Wiga)</b>.")))
+                 "<b>Semitones (NINE HANDS | DSP)</b>.")))
 
     s.append(PageBreak())
     s.append(P(T('3. The interface', "3. L'interface"), 'h1'))
     s.append(img('overview.jpg', CW * 0.50))
-    s.append(P(T('Studio Wiga dark brushed steel design with the engraved Semitones name, same controls as the CHUG Capo. Numbers refer to the next pages.',
-                 'Design Studio Wiga en acier brossé sombre avec le nom Semitones gravé, mêmes commandes que la CHUG Capo. Les numéros renvoient aux pages suivantes.'), 'cap'))
+    s.append(P(T('NINE HANDS | DSP dark brushed steel design with the engraved Semitones name, same controls as the CHUG Capo. Numbers refer to the next pages.',
+                 'Design NINE HANDS | DSP en acier brossé sombre avec le nom Semitones gravé, mêmes commandes que la CHUG Capo. Les numéros renvoient aux pages suivantes.'), 'cap'))
 
     rows = [[T('No.', 'N°'), T('Control', 'Commande'), T('Function', 'Fonction')]]
     rows += [
@@ -358,13 +358,13 @@ def part(lang):
 
     s.append(P(T('7. Window', '7. Fenêtre'), 'h1'))
     s.append(P(T("Right-click anywhere &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b>, <b>100 %</b> resizes this window, like the other "
-                 "Studio Wiga pedals; <b>(default)</b> marks the default size you have chosen. At the bottom of this submenu, <b>Default size (new "
+                 "NINE HANDS | DSP pedals; <b>(default)</b> marks the default size you have chosen. At the bottom of this submenu, <b>Default size (new "
                  "windows)</b> chooses the size at which every new Semitones window opens (one setting shared by all instances, saved on the "
                  "computer); the open window also takes this size at once. The size is not saved with the project: each time it is opened, the "
                  "window comes back at the default size (60 % until you choose another one). It can never be made smaller than 60 %; you can "
                  "also drag the bottom-right corner to enlarge it (aspect ratio kept).",
                  "Clic droit n'importe où &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b>, <b>100 %</b> redimensionne cette fenêtre, comme sur les "
-                 "autres pédales Studio Wiga ; <b>(default)</b> signale la taille par défaut choisie. En bas de ce sous-menu, <b>Default size (new "
+                 "autres pédales NINE HANDS | DSP ; <b>(default)</b> signale la taille par défaut choisie. En bas de ce sous-menu, <b>Default size (new "
                  "windows)</b> choisit la taille d'ouverture de toutes les nouvelles fenêtres de Semitones (réglage commun à toutes les instances, "
                  "enregistré sur l'ordinateur) ; la fenêtre ouverte prend aussi tout de suite cette taille. La taille n'est pas sauvegardée avec le "
                  "projet : à chaque ouverture, la fenêtre revient à la taille par défaut (60 % tant que vous n'en avez pas choisi une autre). Elle ne "

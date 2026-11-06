@@ -4,7 +4,7 @@ concrete, dot-matrix display, light ring around the footswitch).
 All coordinates are in pixels of the source design (design/source_design.jpg,
 812 x 1024). The whole picture is the editor background; it is mapped to the
 editor design space (760 x 958 units, rendered at 2x = 1520 x 1916). The window
-opens at half the design space (380 x 479), the Studio Wiga single-pedal size.
+opens at half the design space (380 x 479), the NINE HANDS | DSP single-pedal size.
 """
 
 # ---------------------------------------------------------------- layout

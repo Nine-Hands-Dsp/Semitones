@@ -1,4 +1,4 @@
-// Semitones (Studio Wiga) - low latency pitch shifter
+// Semitones (NINE HANDS | DSP) - low latency pitch shifter
 // --------------------------------------------------------------------------
 // Time-domain, pitch-synchronous splicing shifter in the spirit of the
 // "digital capo" pedals: a read head runs through a short history buffer at

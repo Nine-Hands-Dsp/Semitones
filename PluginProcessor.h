@@ -5,7 +5,7 @@
 #include <array>
 
 // ============================================================================
-// Semitones (Studio Wiga) - replica of the Solar CHUG Capo pitch pedal
+// Semitones (NINE HANDS | DSP) - replica of the Solar CHUG Capo pitch pedal
 // ============================================================================
 namespace ParamID
 {
