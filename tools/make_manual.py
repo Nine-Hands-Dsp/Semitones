@@ -376,9 +376,9 @@ def part(lang):
     s.append(table(rows, [58 * mm, 18 * mm, 14 * mm, CW - 90 * mm]))
 
     s.append(P(T('9. Tips', '9. Conseils'), 'h1'))
-    s.append(B(T("Place Semitones <b>first</b> in the Reaper chain, before drives and before Two Notes Genome: the shifter tracks a "
+    s.append(B(T("Place Semitones <b>first</b> in the Reaper chain, before drives and before Ampire: the shifter tracks a "
                  "clean guitar best, and the amp then reacts naturally to the transposed signal.",
-                 "Placez Semitones <b>en premier</b> dans la chaîne Reaper, avant les saturations et avant Two Notes Genome : le "
+                 "Placez Semitones <b>en premier</b> dans la chaîne Reaper, avant les saturations et avant Ampire : le "
                  "transpositeur suit mieux une guitare claire, et l'ampli réagit naturellement au signal transposé.")))
     s.append(B(T("Down-tuning a 7-string in G: -1 to -5 stays very solid on riffs; octave down is huge on single-note lines and "
                  "power chords, keep big open chords for the moderate settings.",
