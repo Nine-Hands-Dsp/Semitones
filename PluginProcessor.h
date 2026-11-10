@@ -103,6 +103,7 @@ public:
 
     static const std::vector<FactoryPreset>& factoryPresets();
     int currentPreset = 0;
+    std::atomic<int> glowPct { 100 };            // light halos (footswitch ring): 25 / 50 / 75 / 100 %
 
     // read-outs for the editor
     std::atomic<float> headDelayMs { 0.0f };

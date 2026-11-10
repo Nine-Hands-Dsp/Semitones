@@ -6,15 +6,106 @@ namespace
 {
     double nowMs() { return juce::Time::getMillisecondCounterHiRes(); }
 
-    // tailles du menu Plugin size, en facteur de la taille par défaut d'origine (391 x 493 = « 60 % »)
+    // tailles du menu Plugin size (pédale simple : hauteurs 493 / 719 / 958 px, 493 = « 60 % »)
     constexpr int kNumSizes = 3;
-    const float kSizeFactors[kNumSizes] = { 1.0f, 1.25f, 1.6667f };   // 60 %, 75 %, 100 %
+    const float kSizeFactors[kNumSizes] = { 1.0f, 719.0f / 493.0f, 958.0f / 493.0f };   // 60 %, 75 %, 100 %
     const char* const kSizeLabels[kNumSizes] = { "60 %", "75 %", "100 %" };
 
     const juce::Colour kInk     { 0xffd9dadc };
     const juce::Colour kInkDim  { 0xff8d8f94 };
     const juce::Colour kAccent  { 0xff39a0ff };    // display blue
-    const juce::Colour kBar     { 0xff141416 };
+    const juce::Colour kBar     { 0xff121214 };
+    const juce::Colour kStatus  { 0xff46a5f0 };    // status line in the display
+    const juce::Colour kRing    { 0xff28a8ff };    // footswitch light ring (Octopus)
+
+    // ---------------------------------------------------------------- deboss (cache only, never in paint)
+    void blur (std::vector<float>& a, int w, int h, float sigma)
+    {
+        if (sigma < 0.3f) return;
+        const int r = juce::jmax (1, (int) std::ceil (sigma * 3.0f));
+        std::vector<float> k ((size_t) (2 * r + 1));
+        float sum = 0;
+        for (int i = -r; i <= r; ++i) { k[(size_t) (i + r)] = std::exp (-(float) (i * i) / (2.0f * sigma * sigma)); sum += k[(size_t) (i + r)]; }
+        for (auto& v : k) v /= sum;
+        std::vector<float> tmp (a.size());
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+            {
+                float acc = 0;
+                for (int i = -r; i <= r; ++i) acc += k[(size_t) (i + r)] * a[(size_t) (y * w + juce::jlimit (0, w - 1, x + i))];
+                tmp[(size_t) (y * w + x)] = acc;
+            }
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+            {
+                float acc = 0;
+                for (int i = -r; i <= r; ++i) acc += k[(size_t) (i + r)] * tmp[(size_t) (juce::jlimit (0, h - 1, y + i) * w + x)];
+                a[(size_t) (y * w + x)] = acc;
+            }
+    }
+
+    /** lettering pressed into the metal, lit from the top left at 45 deg (same maths as tools/preview_art.py):
+        light grey floor, soft inner shadow along the top-left walls, bottom-right walls catching the light */
+    void deboss (juce::Image& img, const juce::Path& unitsPath, float k, float depth)
+    {
+        depth *= 1.9f;
+        const int pad = (int) std::ceil ((4.0f * depth + 4.0f) * k) + 4;
+        auto bb = (unitsPath.getBounds() * k).getSmallestIntegerContainer().expanded (pad)
+                      .getIntersection (img.getBounds());
+        if (bb.isEmpty()) return;
+        const int w = bb.getWidth(), h = bb.getHeight();
+        juce::Image mask (juce::Image::SingleChannel, w, h, true);
+        {
+            juce::Graphics g (mask);
+            g.addTransform (juce::AffineTransform::scale (k).translated ((float) -bb.getX(), (float) -bb.getY()));
+            g.setColour (juce::Colours::white);
+            g.fillPath (unitsPath);
+        }
+        std::vector<float> m ((size_t) (w * h)), occ ((size_t) (w * h)), hg;
+        {
+            juce::Image::BitmapData md (mask, juce::Image::BitmapData::readOnly);
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                    m[(size_t) (y * w + x)] = *md.getPixelPointer (x, y) / 255.0f;
+        }
+        const int d = juce::roundToInt (1.05f * depth * k);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+            {
+                const int sx = x - d, sy = y - d;
+                occ[(size_t) (y * w + x)] = (sx < 0 || sy < 0) ? 1.0f : 1.0f - m[(size_t) (sy * w + sx)];
+            }
+        blur (occ, w, h, 0.9f * k);
+        hg = m;
+        blur (hg, w, h, 0.75f * k);
+        const float fill[3] = { 142.0f, 145.0f, 149.0f };
+        juce::Image::BitmapData bd (img, bb.getX(), bb.getY(), w, h, juce::Image::BitmapData::readWrite);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+            {
+                const size_t i = (size_t) (y * w + x);
+                const float mf = m[i];
+                const float gx = 0.5f * (hg[(size_t) (y * w + juce::jmin (w - 1, x + 1))] - hg[(size_t) (y * w + juce::jmax (0, x - 1))]);
+                const float gy = 0.5f * (hg[(size_t) (juce::jmin (h - 1, y + 1) * w + x)] - hg[(size_t) (juce::jmax (0, y - 1) * w + x)]);
+                const float face = (gx * -0.7071f + gy * -0.7071f) * k * 2.4f;
+                const float hv = hg[i];
+                const float wall = juce::jlimit (0.0f, 1.0f, hv * (1.0f - hv) * 4.0f);
+                if (mf <= 0.0f && wall <= 0.0f) continue;
+                auto* px = (juce::PixelARGB*) bd.getPixelPointer (x, y);
+                if (px->getAlpha() < 250) continue;
+                float c[3] = { (float) px->getRed(), (float) px->getGreen(), (float) px->getBlue() };
+                const float o = 1.0f - 0.72f * occ[i] * mf;
+                for (int ch = 0; ch < 3; ++ch)
+                {
+                    float v = c[ch] * (1.0f - mf * 0.9f) + fill[ch] * mf * 0.9f;
+                    v *= o;
+                    v += juce::jlimit (0.0f, 1.0f, face) * wall * 75.0f;
+                    v *= 1.0f - juce::jlimit (0.0f, 1.0f, -face) * wall * 0.75f;
+                    c[ch] = juce::jlimit (0.0f, 255.0f, v);
+                }
+                px->setARGB (255, (juce::uint8) c[0], (juce::uint8) c[1], (juce::uint8) c[2]);
+            }
+    }
 
     juce::Image loadPng (const char* resource)
     {
@@ -32,115 +123,76 @@ namespace
 // Look and feel (preset menu / pop-up menus)
 SemitonesLook::SemitonesLook()
 {
-    setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff1b1c1f));
-    setColour (juce::PopupMenu::textColourId, kInk);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, juce::Colour (0xff23415f));
-    setColour (juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
-    setColour (juce::ComboBox::textColourId, kInk);
-    setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xff1c1d20));
-    setColour (juce::ComboBox::outlineColourId, juce::Colour (0xff34363b));
+    setColour (juce::ComboBox::textColourId, juce::Colour (0xffe1e6ec));
+    setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     setColour (juce::ComboBox::arrowColourId, kInkDim);
 }
 
 juce::Font SemitonesLook::uiFont (float h) const
 {
-    if (face != nullptr) return juce::Font (juce::FontOptions (face).withHeight (h));
-    return juce::Font (juce::FontOptions (h));
+    // h = em size (point height), like the artwork previews (PIL sizes)
+    if (face != nullptr) return juce::Font (juce::FontOptions (face).withPointHeight (h));
+    return juce::Font (juce::FontOptions().withPointHeight (h));
 }
 
 void SemitonesLook::drawComboBox (juce::Graphics& g, int w, int h, bool down, int, int, int, int, juce::ComboBox& box)
 {
-    // sits in the slot milled in the pedal (baked in the background): translucent
-    // smoked panel, so the recess and its shadow stay visible around the text
-    auto r = juce::Rectangle<float> (0.5f, 0.5f, (float) w - 1.0f, (float) h - 1.0f);
-    const float rad = r.getHeight() * 0.5f;
-    juce::ColourGradient grad (juce::Colour (0xc0141518), 0, 0, juce::Colour (0xd00c0d0f), 0, (float) h, false);
-    g.setGradientFill (grad);
-    g.fillRoundedRectangle (r.reduced (1.0f), rad);
-    g.setColour (box.isMouseOver (true) || down ? juce::Colour (0xff3f86c8) : juce::Colour (0x40ffffff));
-    g.drawRoundedRectangle (r.reduced (1.0f), rad, 1.0f);
-    // chevron
-    const float cs = (float) h * 0.16f;
-    const float cx = (float) w - rad - 2.0f, cy = (float) h * 0.5f;
+    // the black slot is milled in the pedal (background): only the chevron is drawn here
+    const float u = (float) h / 40.0f;                                   // slot = 40 units high
+    const float cx = (float) w - 17.0f * u, cy = (float) h * 0.5f;
     juce::Path p;
-    p.startNewSubPath (cx - cs, cy - cs * 0.5f);
-    p.lineTo (cx, cy + cs * 0.6f);
-    p.lineTo (cx + cs, cy - cs * 0.5f);
-    g.setColour (kInk.withAlpha (0.75f));
-    g.strokePath (p, juce::PathStrokeType (juce::jmax (1.5f, (float) h * 0.06f), juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    p.startNewSubPath (cx - 5.0f * u, cy - 2.5f * u);
+    p.lineTo (cx, cy + 2.5f * u);
+    p.lineTo (cx + 5.0f * u, cy - 2.5f * u);
+    const bool hot = box.isMouseOver (true) || down;
+    g.setColour (hot ? juce::Colours::white : juce::Colour (0xffe1e6ec));
+    g.strokePath (p, juce::PathStrokeType (2.2f * u, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
-juce::Font SemitonesLook::getComboBoxFont (juce::ComboBox& b) { return uiFont (juce::jlimit (11.0f, 30.0f, (float) b.getHeight() * 0.62f)); }
+juce::Font SemitonesLook::getComboBoxFont (juce::ComboBox& b) { return uiFont ((float) b.getHeight() * 0.475f); }   // 19 units in the 40-unit slot
 
 void SemitonesLook::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
-    label.setBounds (box.getHeight() / 2, 1, box.getWidth() - box.getHeight() * 2, box.getHeight() - 2);
+    const int side = juce::roundToInt ((float) box.getHeight() * 0.75f);      // keeps the text centred, clear of the chevron
+    label.setBounds (side, 0, box.getWidth() - 2 * side, box.getHeight());
     label.setInterceptsMouseClicks (false, false);
     label.setEditable (false, false, false);
     label.setFont (getComboBoxFont (box));
     label.setJustificationType (juce::Justification::centred);
-    label.setMinimumHorizontalScale (0.72f);   // long names squeeze slightly instead of being cut
-}
-
-juce::Font SemitonesLook::getPopupMenuFont() { return uiFont (18.0f); }
-
-void SemitonesLook::drawPopupMenuBackground (juce::Graphics& g, int w, int h)
-{
-    g.fillAll (findColour (juce::PopupMenu::backgroundColourId));
-    g.setColour (juce::Colour (0xff34363b));
-    g.drawRect (0, 0, w, h);
-}
-
-void SemitonesLook::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<int>& area, bool isSeparator, bool isActive,
-                                       bool isHighlighted, bool isTicked, bool hasSubMenu, const juce::String& text,
-                                       const juce::String& shortcut, const juce::Drawable* icon, const juce::Colour* tc)
-{
-    if (isSeparator)
-    {
-        g.setColour (juce::Colour (0xff34363b));
-        g.fillRect (area.reduced (8, 0).withHeight (1).withY (area.getCentreY()));
-        return;
-    }
-    LookAndFeel_V4::drawPopupMenuItem (g, area, false, isActive, isHighlighted, isTicked, hasSubMenu, text, shortcut, icon, tc);
-}
-
-void SemitonesLook::drawPopupMenuSectionHeader (juce::Graphics& g, const juce::Rectangle<int>& area, const juce::String& name)
-{
-    g.setFont (uiFont (14.0f));
-    g.setColour (kAccent.withAlpha (0.9f));
-    g.drawFittedText (name.toUpperCase(), area.reduced (12, 0).withTrimmedTop (4), juce::Justification::bottomLeft, 1);
+    label.setMinimumHorizontalScale (0.72f);
 }
 
 // ============================================================================
 void PresetBox::showPopup()
 {
-    if (! isEnabled())
+    if (! isEnabled() || menuLnf == nullptr)
         return;
-    auto menu = *getRootMenu();
     const int sel = getSelectedId();
-    for (juce::PopupMenu::MenuItemIterator it (menu, true); it.next();)
+    juce::PopupMenu menu;
+    menu.setLookAndFeel (menuLnf);
+    NineHandsMenu::addHeader (menu, menuLnf->f, NineHandsMenu::icoPreset, kAccent, "Presets",
+                              sel > 0 ? getText() : juce::String ("Custom"));
+    for (juce::PopupMenu::MenuItemIterator it (*getRootMenu(), false); it.next();)
     {
-        auto& item = it.getItem();
-        if (item.itemID != 0)
-            item.isTicked = (item.itemID == sel);
+        const auto& item = it.getItem();
+        if (item.isSectionHeader) menu.addSectionHeader (item.text);
+        else if (item.isSeparator) menu.addSeparator();
+        else if (item.itemID != 0) menu.addItem (item.itemID, item.text, true, item.itemID == sel);
     }
-    auto& lf = getLookAndFeel();
-    menu.setLookAndFeel (&lf);
-    // always open at the same place, right under the box, whatever the current
-    // preset (the stock combo box shifts the menu so the selected item sits on
-    // the box, which pushes it off screen for presets at the bottom of the list)
+    // the preset menu stays under its bar (rule of the skills); the other menus open at the click
     auto options = juce::PopupMenu::Options().withTargetComponent (this)
                                              .withMinimumWidth (getWidth())
                                              .withMaximumNumColumns (1)
                                              .withPreferredPopupDirection (juce::PopupMenu::Options::PopupDirection::downwards)
-                                             .withStandardItemHeight (juce::jlimit (22, 30, juce::roundToInt ((float) getHeight() * 0.75f)));
+                                             .withStandardItemHeight (30);
     juce::Component::SafePointer<PresetBox> safe (this);
     menu.showMenuAsync (options, [safe] (int result)
     {
         if (safe == nullptr)
             return;
         safe->hidePopup();
-        if (result > 0)
+        if (result > 0 && result != 9001)
             safe->pick (result);
     });
 }
@@ -160,8 +212,12 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     face = juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
     look.setTypeface (face);
     setLookAndFeel (&look);
+    menuLnf.f = { juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsRegular_ttf, BinaryData::PoppinsRegular_ttfSize), face,
+                  juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize) };
+    presetBox.menuLnf = &menuLnf;
 
-    bgImage = loadPng ("background_jpg");
+    bgImage = loadPng ("background_png");
+    buildTexts();
     for (const auto& s : Layout::sprites)
     {
         Sprite sp;
@@ -172,7 +228,7 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     for (auto n : { "s_l", "s_r", "s_u", "s_d" }) segNames.push_back (std::string ("seg_") + n);
     for (char c = 'a'; c <= 'g'; ++c) segNames.push_back (std::string ("seg_t_") + c);
     for (char c = 'a'; c <= 'g'; ++c) segNames.push_back (std::string ("seg_u_") + c);
-    segNames.push_back ("seg_mix");   // MIX indicator dash, above the MIX button
+    segNames.push_back ("seg_mix");   // MIX indicator dot, in the display
 
     // preset menu
     // grouped list: section headers are titles only (not selectable), every
@@ -212,9 +268,9 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     addAndMakeVisible (presetBox);
     syncPresetBox();
 
-    setResizable (true, true);
+    setResizable (true, false);                 // the host resizes the window (no corner grip on the pedal)
     // default size = minimum size (simple pedal format, like Echoflex / Holyverb)
-    const int defW = Layout::defaultW;   // 391 x 493
+    const int defW = Layout::defaultW;   // 338 x 493 (pedal 1235 x 1800)
     const int defH = Layout::defaultH;
     setResizeLimits (defW, defH, defW * 2, defH * 2);
     if (auto* c = getConstrainer())
@@ -229,12 +285,14 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     const auto e = proc.getEffective();
     if (e.on) led[0] = 1.0f;
     segMask = computeSegments();
+    rebuildCacheAt (juce::Component::getApproximateScaleFactorForComponent (this));
     startTimerHz (30);
 }
 
 SemitonesEditor::~SemitonesEditor()
 {
     stopTimer();
+    juce::PopupMenu::dismissAllActiveMenus();
     setLookAndFeel (nullptr);
 }
 
@@ -337,24 +395,9 @@ void SemitonesEditor::paint (juce::Graphics& g)
     else if (bgImage.isValid())
         g.drawImage (bgImage, bounds, juce::RectanglePlacement::stretchToFit);
 
-    // footswitch light: blue ring with a glowing light turning around it
+    // footswitch light: Octopus ring (halo, diffuser, core)
     if (led[0] > 0.003f)
-    {
-        // steady blue ring + its light on the faceplate, then the rotating light and its halo
-        drawSprite (g, "ringlight", led[0]);
-        drawSprite (g, "ring_lit", led[0]);
-        if (auto* sp = sprite ("ring_comet"))
-            if (sp->img.isValid())
-            {
-                const float s = scale();
-                const auto t = juce::AffineTransform::scale (sp->r.getWidth() * s / (float) sp->img.getWidth(),
-                                                             sp->r.getHeight() * s / (float) sp->img.getHeight())
-                                   .translated (sp->r.getX() * s, sp->r.getY() * s)
-                                   .rotated (ringAngle, Layout::ringX * s, Layout::ringY * s);
-                g.setOpacity (juce::jlimit (0.0f, 1.0f, led[0]));
-                g.drawImageTransformed (sp->img, t);
-            }
-    }
+        drawRing (g, led[0]);
 
     // pressed controls
     if (downLeft)  drawSprite (g, "press_left");
@@ -369,33 +412,49 @@ void SemitonesEditor::paint (juce::Graphics& g)
             drawSprite (g, segNames[i]);
     g.setOpacity (1.0f);
 
-    // preset label + status line (inside the pill of the design)
+    // status line, at the bottom of the display (Poppins Medium 15.5 units, display blue)
     const float s = scale();
     const auto status = statusText();
     const auto st = Layout::statusBox;
-    auto sr = juce::Rectangle<float> (st.x * s, st.y * s, st.w * s, st.h * s);
-    g.setFont (look.uiFont (st.h * 0.74f * s));
-    g.setColour (juce::Colour (0xffa4a7ac));
-    g.drawFittedText (status, sr.reduced (12.0f * s, 0).toNearestInt(), juce::Justification::centred, 1, 0.6f);
+    auto sr = juce::Rectangle<float> ((st.x + 12.0f) * s, st.y * s, st.w * s, st.h * s);
+    g.setFont (look.uiFont (15.5f * s));
+    g.setColour (kStatus);
+    g.drawFittedText (status, sr.toNearestInt(), juce::Justification::centred, 1, 0.55f);
+}
+
+void SemitonesEditor::drawRing (juce::Graphics& g, float lvl) const
+{
+    // Octopus drawRing(): halo strokes 13 -> 3 (alpha .045 x Glow), diffuser (alpha .85), lighter core (alpha .9)
+    const float s = scale();
+    const float cx = Layout::ringX * s, cy = Layout::ringY * s, R = Layout::ringR * s, K = Layout::ringK * s;
+    const float glow = (float) juce::jlimit (25, 100, proc.glowPct.load()) / 100.0f;
+    auto stroke = [&] (float width, juce::Colour c, float a)
+    {
+        g.setColour (c.withAlpha (juce::jlimit (0.0f, 1.0f, a)));
+        g.drawEllipse (cx - R, cy - R, 2 * R, 2 * R, width);
+    };
+    for (float hw = 13.0f; hw > 3.0f; hw -= 1.5f)
+        stroke (hw * K, kRing, 0.045f * 1.15f * lvl * glow);
+    stroke (Layout::ringW * s, kRing, 0.85f * lvl);
+    stroke (Layout::ringW * 0.42f * s, kRing.interpolatedWith (juce::Colours::white, 0.55f), 0.9f * lvl);
 }
 
 juce::String SemitonesEditor::statusText() const
 {
     const int lt = proc.learnTarget.load();
     if (lt >= 0)
-        return "MIDI LEARN: move a control for " + SemitonesProcessor::targetName ((MidiTarget) lt);
+        return "MIDI LEARN: " + SemitonesProcessor::targetName ((MidiTarget) lt);
     if (learnLineUntil > 0 && nowMs() < learnLineUntil)
         return learnLine;
     if (hover != Hit::none && hover != Hit::background && nowMs() - hoverSince < 2500.0)
         return hintFor (hover);
     const auto e = proc.getEffective();
-    juce::String st = e.semis > 0 ? "+" + juce::String (e.semis) : juce::String (e.semis);
-    st = st.replace ("-", juce::String::fromUTF8 ("\xe2\x88\x92"));
-    juce::String txt;
-    txt << "PITCH  " << st << " st     MIX  " << juce::String ((int) std::lround (e.mix)) << " %"
-        << (e.mixOn ? "  ON" : "  OFF")
-        << "     FAV  " << (e.fav ? "ON" : "OFF");
-    if (! e.on) txt << "     BYPASS";
+    const juce::String dot ("   " + juce::String::fromUTF8 ("\xc2\xb7") + "   ");
+    juce::String st = (e.semis >= 0 ? "+" : juce::String::fromUTF8 ("\xe2\x88\x92")) + juce::String (std::abs (e.semis)) + " ST";
+    juce::String txt = e.mixOn ? "MIX " + juce::String ((int) std::lround (e.mix)) + " %" : juce::String ("DRY OFF");
+    txt << dot << st;
+    if (e.fav) txt << dot << "FAV";
+    if (! e.on) txt << dot << "BYPASS";
     return txt;
 }
 
@@ -403,12 +462,12 @@ juce::String SemitonesEditor::hintFor (Hit h) const
 {
     switch (h)
     {
-        case Hit::left:    return mixAdjust ? "Lower the mix" : "Lower the pitch one semitone (hold to repeat)";
-        case Hit::right:   return mixAdjust ? "Raise the mix" : "Raise the pitch one semitone (hold to repeat)";
-        case Hit::mix:     return "MIX: click = mix mode on/off   -   hold = adjust the mix with the arrows";
-        case Hit::fav:     return "FAV: click = recall / leave FAV   -   hold = save the current sound as FAV";
-        case Hit::foot:    return "Footswitch: effect on / bypass (blue ring = on)   -   right click: MIDI";
-        case Hit::display: return "Drag or scroll to change the pitch   -   right click: MIDI";
+        case Hit::left:    return mixAdjust ? "MIX  -1 %" : juce::String::fromUTF8 ("\xe2\x88\x92") + "1 ST  (hold = repeat)";
+        case Hit::right:   return mixAdjust ? "MIX  +1 %" : juce::String ("+1 ST  (hold = repeat)");
+        case Hit::mix:     return "MIX on / off  -  hold: set the mix";
+        case Hit::fav:     return "FAV recall  -  hold: save";
+        case Hit::foot:    return "Effect on / bypass";
+        case Hit::display: return "Drag or scroll: pitch";
         default: break;
     }
     return {};
@@ -422,19 +481,49 @@ void SemitonesEditor::resized()
     resizeSettle = 4;
 }
 
-void SemitonesEditor::rebuildCache()
+void SemitonesEditor::buildTexts()
+{
+    // vector texts of the mockup (design/Semitones_Texts.svg, px of the 1235 x 1800 frame -> units)
+    texts.clear();
+    int size = 0;
+    auto* data = BinaryData::getNamedResource ("Semitones_Texts_svg", size);
+    if (data == nullptr) return;
+    auto xml = juce::XmlDocument::parse (juce::String::fromUTF8 (data, size));
+    if (xml == nullptr) return;
+    const std::map<juce::String, float> depth { { "mix", 0.6f }, { "fav", 0.6f }, { "name", 1.0f },
+                                                { "out", 0.8f }, { "in", 0.8f }, { "logo", 0.7f } };
+    for (auto* grp : xml->getChildWithTagNameIterator ("g"))
+    {
+        TextPath tp;
+        for (auto* pe : grp->getChildWithTagNameIterator ("path"))
+            tp.path.addPath (juce::Drawable::parseSVGPath (pe->getStringAttribute ("d")));
+        tp.path.applyTransform (juce::AffineTransform::scale (Layout::W / 1235.5f));
+        const auto it = depth.find (grp->getStringAttribute ("id"));
+        tp.depth = it != depth.end() ? it->second : 0.7f;
+        texts.push_back (std::move (tp));
+    }
+}
+
+void SemitonesEditor::rebuildCacheAt (float ds)
 {
     if (! bgImage.isValid() || getWidth() <= 0) return;
-    const float ds = juce::Component::getApproximateScaleFactorForComponent (this);
     const int pw = juce::jmax (1, juce::roundToInt ((float) getWidth() * ds));
     const int ph = juce::jmax (1, juce::roundToInt ((float) getHeight() * ds));
     if (bgCache.isValid() && bgCache.getWidth() == pw && bgCache.getHeight() == ph) return;
-    if (pw == bgImage.getWidth() && ph == bgImage.getHeight())
-        bgCache = bgImage;
-    else
-        bgCache = bgImage.rescaled (pw, ph, juce::Graphics::highResamplingQuality);
+    auto img = (pw == bgImage.getWidth() && ph == bgImage.getHeight()) ? bgImage.createCopy()
+                                                                        : bgImage.rescaled (pw, ph, juce::Graphics::highResamplingQuality);
+    img = img.convertedToFormat (juce::Image::ARGB);
+    const float k = (float) pw / Layout::W;                      // physical px per unit
+    for (const auto& t : texts)
+        deboss (img, t.path, k, t.depth);
+    bgCache = img;
     cacheScale = ds;
     repaint();
+}
+
+void SemitonesEditor::rebuildCache()
+{
+    rebuildCacheAt (juce::Component::getApproximateScaleFactorForComponent (this));
 }
 
 // ---------------------------------------------------------------- anti-freeze
@@ -489,7 +578,13 @@ void SemitonesEditor::syncPresetBox()
     else
         for (int i = 0; i < (int) list.size(); ++i)
             if (matches (list[(size_t) i])) { id = i + 1; break; }
-    if (presetBox.getSelectedId() != id)
+    if (id == 0)
+    {
+        // "Custom" at full brightness (the stock "nothing selected" text is drawn at half alpha)
+        if (presetBox.getSelectedId() != 0 || presetBox.getText() != "Custom")
+            presetBox.setText ("Custom", juce::dontSendNotification);
+    }
+    else if (presetBox.getSelectedId() != id)
         presetBox.setSelectedId (id, juce::dontSendNotification);
 }
 
@@ -555,12 +650,14 @@ void SemitonesEditor::timerCallback()
         led[0] += (target - led[0]) * (target > led[0] ? 0.45f : 0.28f);
         if (std::abs (led[0] - target) < 0.004f) led[0] = target;
     }
-    // rotating light: one turn every 1.6 s while the ring is lit
-    ringAngle = (float) std::fmod (t / 1600.0 * juce::MathConstants<double>::twoPi, juce::MathConstants<double>::twoPi);
-    if (std::abs (led[0] - drawnLed[0]) > 0.002f || led[0] > 0.003f)
+    // the ring is steady: repaint only while it fades (or when the Glow setting changes)
+    const float glowNow = (float) proc.glowPct.load();
+    if (std::abs (led[0] - drawnLed[0]) > 0.002f || glowNow != drawnGlow)
     {
         drawnLed[0] = led[0];
-        if (auto* sp = sprite ("ring_comet")) askRepaint (toScreen (sp->r, 4.0f));
+        drawnGlow = glowNow;
+        const float rr = Layout::ringR + 16.0f * Layout::ringK;
+        askRepaint (toScreen ({ Layout::ringX - rr, Layout::ringY - rr, 2 * rr, 2 * rr }, 4.0f));
     }
 
     segMask = computeSegments();
@@ -694,7 +791,7 @@ void SemitonesEditor::mouseWheelMove (const juce::MouseEvent& ev, const juce::Mo
 void SemitonesEditor::showMenu (Hit h)
 {
     juce::PopupMenu m;
-    m.setLookAndFeel (&look);
+    m.setLookAndFeel (&menuLnf);
     std::vector<MidiTarget> targets;
     switch (h)
     {
@@ -705,6 +802,22 @@ void SemitonesEditor::showMenu (Hit h)
         case Hit::fav:     targets = { MidiTarget::fav }; break;
         case Hit::display: targets = { MidiTarget::semitones, MidiTarget::up, MidiTarget::down }; break;
         default: break;
+    }
+    // header (Octopus): the pedal, or the control with its MIDI assignment
+    {
+        juce::String title ("Semitones"), sub (juce::String ("Pitch shifter  v") + JucePlugin_VersionString);
+        int ico = NineHandsMenu::icoPedal;
+        if (! targets.empty())
+        {
+            const auto t0 = targets.front();
+            const int cc = proc.midiCC[(size_t) t0].load();
+            title = h == Hit::foot ? juce::String ("Footswitch") : h == Hit::mix ? juce::String ("MIX")
+                  : h == Hit::fav ? juce::String ("FAV") : h == Hit::left ? juce::String ("Left arrow")
+                  : h == Hit::right ? juce::String ("Right arrow") : juce::String ("Display");
+            sub = cc >= 0 ? "MIDI: CC " + juce::String (cc) : juce::String ("MIDI: not assigned");
+            ico = h == Hit::display ? NineHandsMenu::icoKnob : NineHandsMenu::icoSwitch;
+        }
+        NineHandsMenu::addHeader (m, menuLnf.f, ico, kAccent, title, sub);
     }
     int id = 1;
     struct Act { int kind; MidiTarget t; float size; };
@@ -748,7 +861,6 @@ void SemitonesEditor::showMenu (Hit h)
     if (targets.empty())
     {
         juce::PopupMenu midi;
-        midi.setLookAndFeel (&look);
         for (int i = 0; i < (int) MidiTarget::count; ++i)
         {
             const auto t = (MidiTarget) i;
@@ -765,9 +877,7 @@ void SemitonesEditor::showMenu (Hit h)
         // Plugin size : taille de cette fenêtre + taille par défaut des nouvelles fenêtres (comme Octopus)
         // même liste que les autres pédales : 60 % (taille par défaut d'origine), 75 %, 100 %
         const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, kNumSizes);
-        juce::PopupMenu sizes, defSizes;
-        sizes.setLookAndFeel (&look);
-        defSizes.setLookAndFeel (&look);
+        juce::PopupMenu sizes, defSizes, glow;
         for (int k = 0; k < kNumSizes; ++k)
         {
             const float sz = kSizeFactors[k];
@@ -782,10 +892,17 @@ void SemitonesEditor::showMenu (Hit h)
         sizes.addSubMenu ("Default size (new windows)", defSizes);
         m.addSeparator();
         m.addSubMenu ("Plugin size", sizes);
+        // Glow: intensity of the light halos (footswitch ring)
+        for (int pct : { 25, 50, 75, 100 })
+        {
+            acts[id] = { 9, MidiTarget::count, (float) pct };
+            glow.addItem (id++, "Glow " + juce::String (pct) + " %", true, proc.glowPct.load() == pct);
+        }
+        m.addSubMenu ("Glow", glow);
     }
 
     juce::Component::SafePointer<SemitonesEditor> safe (this);
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMousePosition(),
+    m.showMenuAsync (juce::PopupMenu::Options().withMousePosition(),          // opens where the user clicks
         [safe, acts] (int r)
         {
             if (safe == nullptr || r <= 0) return;
@@ -804,6 +921,7 @@ void SemitonesEditor::showMenu (Hit h)
                 case 5: pr.learnTarget.store (-1); break;
                 case 7: pr.resetMidiMap(); break;
                 case 6: safe->setSize (juce::roundToInt (Layout::defaultW * a.size), juce::roundToInt (Layout::defaultH * a.size)); break;
+                case 9: pr.glowPct.store ((int) a.size); break;
                 case 8:
                 {
                     const int k = juce::jlimit (0, kNumSizes - 1, (int) a.size);
@@ -829,7 +947,8 @@ void SemitonesEditor::setPreviewState (bool l, bool r, bool mx, bool fv, bool ft
 
 void SemitonesEditor::settleForSnapshot()
 {
-    resizeSettle = 1;
+    resizeSettle = 0;
     for (int i = 0; i < 40; ++i) timerCallback();
-    bgCache = bgImage;            // full resolution art for 2x snapshots
+    bgCache = {};
+    rebuildCacheAt (4.0f);        // full resolution art (with the debossed texts) for 4x snapshots
 }

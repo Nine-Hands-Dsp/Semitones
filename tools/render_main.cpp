@@ -4,6 +4,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <thread>
+#include "NineHandsMenu.h"
 
 struct Shot
 {
@@ -166,6 +167,51 @@ int main (int argc, char** argv)
         printf ("presets: host %d/%d  menu %d/%d  headings %d  editable %d\n", okHost, (int) list.size(), okBox, (int) list.size(),
                 headings, (int) box->isTextEditable());
     }
+    // menu clic droit (design Octopus, NineHandsMenu.h) : rendu hors ecran avec le meme LookAndFeel que le plugin
+    {
+        NineHandsMenu::MenuLnf lnf;
+        lnf.f = { juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsRegular_ttf, BinaryData::PoppinsRegular_ttfSize),
+                  juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize),
+                  juce::Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize) };
+        struct It { juce::String text; bool sep, sub, ticked, active, hi; };
+        auto render = [&] (const juce::String& name, const juce::String& title, const juce::String& subtitle, int ico, const std::vector<It>& items, int hiIndex)
+        {
+            NineHandsMenu::Header hd (lnf.f, ico, juce::Colour (0xff39a0ff), title, subtitle);
+            int w = 0, h = 0; hd.getIdealSize (w, h);
+            const int border = lnf.getPopupMenuBorderSize();
+            int totalH = border * 2 + h + 11, maxW = w;
+            for (auto& it : items) { int iw, ih; lnf.getIdealPopupMenuItemSize (it.text, it.sep, 0, iw, ih); totalH += ih; maxW = juce::jmax (maxW, iw + (it.sub ? 20 : 0)); }
+            maxW += border * 2;
+            juce::Image img (juce::Image::ARGB, maxW * 2, totalH * 2, true);
+            juce::Graphics g (img); g.addTransform (juce::AffineTransform::scale (2.0f));
+            lnf.drawPopupMenuBackground (g, maxW, totalH);
+            int y = border;
+            hd.setSize (maxW - border * 2, h);
+            { juce::Graphics::ScopedSaveState ss (g); g.setOrigin (border, y); hd.paint (g); }
+            y += h;
+            lnf.drawPopupMenuItem (g, { border, y, maxW - border * 2, 11 }, true, true, false, false, false, {}, {}, nullptr, nullptr); y += 11;
+            for (size_t i = 0; i < items.size(); ++i)
+            {
+                const auto& it = items[i]; int iw, ih; lnf.getIdealPopupMenuItemSize (it.text, it.sep, 0, iw, ih);
+                lnf.drawPopupMenuItem (g, { border, y, maxW - border * 2, ih }, it.sep, it.active, (int) i == hiIndex, it.ticked, it.sub, it.text, {}, nullptr, nullptr);
+                y += ih;
+            }
+            juce::File f = outDir.getChildFile (name + ".png"); f.deleteFile();
+            juce::FileOutputStream os (f); juce::PNGImageFormat().writeImageToStream (img, os);
+            std::printf ("%s\n", f.getFullPathName().toRawUTF8());
+        };
+        render ("menu_main", "Semitones", "Pitch shifter  v" JucePlugin_VersionString, NineHandsMenu::icoPedal,
+                { { "MIDI", false, true, false, true }, { "", true }, { "Plugin size", false, true, false, true },
+                  { "Glow", false, true, false, true } }, 2);
+        render ("menu_foot", "Footswitch", "MIDI: not assigned", NineHandsMenu::icoSwitch,
+                { { "MIDI Learn: Footswitch (none)", false, false, false, true }, { "Latching switch (CC >= 64 = on)", false, false, true, true },
+                  { "Momentary switch (each press toggles)", false, false, false, true }, { "Clear MIDI: Footswitch", false, false, false, false },
+                  { "", true }, { "Plugin size", false, true, false, true }, { "Glow", false, true, false, true } }, 0);
+        render ("menu_glow", "Glow", "Footswitch ring", NineHandsMenu::icoSettings,
+                { { "Glow 25 %", false, false, false, true }, { "Glow 50 %", false, false, false, true },
+                  { "Glow 75 %", false, false, false, true }, { "Glow 100 %", false, false, true, true } }, 1);
+    }
+
     const Shot shots[] = {
         { "ui_default.png",        0, false, 50, false, true,  false, false, false, false, false, false },
         { "ui_plus4.png",          4, false, 50, false, true,  false, false, false, false, false, false },

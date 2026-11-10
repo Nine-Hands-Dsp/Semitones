@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Semitones VERSION 1.6.1 LANGUAGES C CXX)
+project(Semitones VERSION 2.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,7 +46,8 @@ juce_generate_juce_header(Semitones)
 file(GLOB SEMITONES_ASSETS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.png
     ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.jpg
-    ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.ttf)
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/*.svg)
 juce_add_binary_data(SemitonesAssets SOURCES ${SEMITONES_ASSETS})
 
 set(SEMITONES_SOURCES
@@ -83,7 +84,7 @@ if(SEMITONES_BUILD_RENDER)
     target_include_directories(SemitonesRender PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(SemitonesRender PRIVATE ${SEMITONES_DEFS}
         JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XSHM=0
-        JucePlugin_Name="Semitones" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=1
+        JucePlugin_Name="Semitones" JucePlugin_VersionString="${PROJECT_VERSION}" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=1
         JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JUCE_MODAL_LOOPS_PERMITTED=1)
     target_link_libraries(SemitonesRender PRIVATE SemitonesAssets
         juce::juce_audio_utils juce::juce_dsp juce::juce_recommended_config_flags)
