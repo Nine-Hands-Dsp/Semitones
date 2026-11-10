@@ -6,42 +6,42 @@ struct Sprite { const char* name; R r; };
 constexpr float W = 617.50f, H = 900.00f;
 constexpr int defaultH = 493, defaultW = 338;   // "60 %"
 constexpr Sprite sprites[] = {
-    { "seg_s_l", { 190.50f, 185.50f, 66.00f, 60.50f } },
-    { "seg_s_r", { 206.50f, 185.50f, 66.00f, 60.50f } },
-    { "seg_s_u", { 199.50f, 167.50f, 63.50f, 73.50f } },
-    { "seg_s_d", { 199.50f, 190.50f, 63.50f, 73.50f } },
-    { "seg_t_a", { 278.00f, 146.50f, 83.00f, 66.50f } },
-    { "seg_t_b", { 312.00f, 162.50f, 62.50f, 70.50f } },
-    { "seg_t_c", { 312.00f, 198.50f, 62.50f, 70.50f } },
-    { "seg_t_d", { 278.00f, 218.50f, 83.00f, 66.50f } },
-    { "seg_t_e", { 264.00f, 198.50f, 62.50f, 70.50f } },
-    { "seg_t_f", { 264.00f, 162.50f, 62.50f, 70.50f } },
-    { "seg_t_g", { 278.00f, 182.50f, 83.00f, 66.50f } },
-    { "seg_u_a", { 346.50f, 146.50f, 83.00f, 66.50f } },
-    { "seg_u_b", { 381.00f, 162.50f, 62.00f, 70.50f } },
-    { "seg_u_c", { 381.00f, 198.50f, 62.00f, 70.50f } },
-    { "seg_u_d", { 346.50f, 218.50f, 83.00f, 66.50f } },
-    { "seg_u_e", { 333.00f, 198.50f, 62.00f, 70.50f } },
-    { "seg_u_f", { 333.00f, 162.50f, 62.00f, 70.50f } },
-    { "seg_u_g", { 346.50f, 182.50f, 83.00f, 66.50f } },
-    { "seg_mix", { 182.50f, 295.00f, 40.50f, 37.00f } },
-    { "press_left", { 64.00f, 175.50f, 80.00f, 80.00f } },
-    { "press_right", { 474.00f, 175.50f, 80.00f, 80.00f } },
-    { "press_mix", { 168.50f, 349.00f, 67.00f, 67.00f } },
-    { "press_fav", { 381.00f, 349.00f, 67.00f, 67.00f } },
-    { "press_foot", { 233.00f, 677.00f, 151.00f, 151.00f } }
+    { "seg_s_l", { 183.00f, 182.00f, 72.50f, 63.50f } },
+    { "seg_s_r", { 203.50f, 182.00f, 72.50f, 63.50f } },
+    { "seg_s_u", { 197.00f, 163.50f, 65.00f, 76.50f } },
+    { "seg_s_d", { 197.00f, 188.00f, 65.00f, 76.50f } },
+    { "seg_t_a", { 277.00f, 142.00f, 87.50f, 68.00f } },
+    { "seg_t_b", { 315.00f, 158.50f, 63.50f, 73.00f } },
+    { "seg_t_c", { 315.00f, 196.50f, 63.50f, 73.00f } },
+    { "seg_t_d", { 277.00f, 218.00f, 87.50f, 68.00f } },
+    { "seg_t_e", { 263.00f, 196.50f, 63.50f, 73.00f } },
+    { "seg_t_f", { 263.00f, 158.50f, 63.50f, 73.00f } },
+    { "seg_t_g", { 277.00f, 180.00f, 87.50f, 68.00f } },
+    { "seg_u_a", { 344.50f, 142.00f, 87.00f, 68.00f } },
+    { "seg_u_b", { 382.00f, 158.50f, 64.00f, 73.00f } },
+    { "seg_u_c", { 382.00f, 196.50f, 64.00f, 73.00f } },
+    { "seg_u_d", { 344.50f, 218.00f, 87.00f, 68.00f } },
+    { "seg_u_e", { 330.00f, 196.50f, 64.00f, 73.00f } },
+    { "seg_u_f", { 330.00f, 158.50f, 64.00f, 73.00f } },
+    { "seg_u_g", { 344.50f, 180.00f, 87.00f, 68.00f } },
+    { "seg_mix", { 181.50f, 294.00f, 40.50f, 37.00f } },
+    { "press_left", { 68.50f, 176.50f, 80.00f, 80.00f } },
+    { "press_right", { 469.00f, 176.50f, 80.00f, 80.00f } },
+    { "press_mix", { 170.00f, 349.00f, 62.50f, 62.50f } },
+    { "press_fav", { 384.00f, 349.00f, 62.50f, 62.50f } },
+    { "press_foot", { 233.00f, 675.50f, 151.00f, 151.00f } }
 };
-constexpr R hitLeft { 70.02f, 175.74f, 68.00f, 80.00f };
-constexpr R hitRight { 480.45f, 175.74f, 68.00f, 80.00f };
-constexpr R hitDisplay { 159.06f, 104.56f, 300.34f, 228.53f };
-constexpr R statusBox { 193.75f, 297.09f, 230.00f, 30.00f };
-constexpr R presetBox { 171.62f, 37.50f, 285.85f, 31.76f };
-constexpr R box { 20.00f, 0.00f, 577.50f, 900.00f };
-constexpr float mixX = 202.52f, mixY = 382.94f, mixR = 31.59f;
-constexpr float favX = 414.98f, favY = 382.94f, favR = 31.59f;
-constexpr float footX = 308.75f, footY = 752.65f, footR = 68.32f;
-constexpr float ringX = 308.75f, ringY = 752.65f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
-constexpr float labelY = 346.32f, nameX = 299.09f, nameY = 522.79f;
-constexpr float jackY = 425.74f, textY = 434.56f, outX = 54.77f, inX = 562.73f;
-constexpr float logoX = 308.75f, logoY = 868.68f, logoW = 220.00f;
+constexpr R hitLeft { 74.99f, 176.92f, 68.00f, 80.00f };
+constexpr R hitRight { 475.30f, 176.92f, 68.00f, 80.00f };
+constexpr R hitDisplay { 159.72f, 107.54f, 298.06f, 224.63f };
+constexpr R statusBox { 193.75f, 296.18f, 230.00f, 30.00f };
+constexpr R presetBox { 162.89f, 38.54f, 296.47f, 32.30f };
+constexpr R box { 21.00f, 0.00f, 575.50f, 900.00f };
+constexpr float mixX = 201.74f, mixY = 380.63f, mixR = 29.49f;
+constexpr float favX = 415.76f, favY = 380.63f, favR = 29.49f;
+constexpr float footX = 308.75f, footY = 751.30f, footR = 68.32f;
+constexpr float ringX = 308.75f, ringY = 751.30f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
+constexpr float labelY = 347.59f, nameX = 300.82f, nameY = 521.57f;
+constexpr float jackY = 425.41f, textY = 429.81f, outX = 55.09f, inX = 562.41f;
+constexpr float logoX = 308.75f, logoY = 862.19f, logoW = 220.00f;
 }

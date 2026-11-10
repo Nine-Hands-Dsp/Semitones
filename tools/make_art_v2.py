@@ -27,10 +27,10 @@ FW, FH = 617.5, 900.0
 W, H = int(FW * AS), int(FH * AS)
 
 src = np.asarray(Image.open(os.path.join(ROOT, 'design', 'v2src', 'clean_pedal.png')).convert('RGBA')).astype(np.float32)
-SB = (601.0, 107.5, 1199.0, 1127.5)                 # enclosure in the source picture (px)
+SB = (537.0, 4.5, 1263.0, 1230.5)                 # enclosure in the source picture (px)
 KY = FH / (SB[3] - SB[1])                           # units per source px (iso scale)
 
-JACK_LEN = 96.0
+JACK_LEN = 100.0
 _j = PC.jack_sprite(JACK_LEN, AS, 1)
 JP = _j[1]                                          # jack protrusion (units)
 BX0, BX1 = JP, FW - JP
@@ -97,16 +97,16 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
 
 
 # parts measured on the source picture (px)
-S_MIX, S_FAV, S_BTN_R = (790.0, 541.5), (1010.0, 541.5), 29.0
-S_ARL, S_ARR = (688.0, 352.0), (1113.0, 352.0)
-MIX = iso_patch(*S_MIX, 36, 5)
-FAV = iso_patch(*S_FAV, 36, 5)
-ARROW_L = iso_patch(*S_ARL, 50, 8)
-ARROW_R = iso_patch(*S_ARR, 50, 8)
+S_MIX, S_FAV, S_BTN_R = (765.0, 523.0), (1035.0, 523.0), 32.0
+S_ARL, S_ARR = (648.0, 300.0), (1153.0, 300.0)
+MIX = iso_patch(*S_MIX, 42, 6)
+FAV = iso_patch(*S_FAV, 42, 6)
+ARROW_L = iso_patch(*S_ARL, 58, 9)
+ARROW_R = iso_patch(*S_ARR, 58, 9)
 BTN_R = S_BTN_R * KY
 
 # ------------------------------------------------------------------ 2. display: rebuilt glass + dot matrix
-GL = P(745.0, 226.0) + P(1056.0, 485.0)
+GL = P(712.0, 151.0) + P(1088.0, 457.0)
 gx_, gy_ = GL[0], GL[1]; gw_, gh_ = GL[2] - GL[0], GL[3] - GL[1]
 GLASS = (gx_, gy_, gw_, gh_)
 
@@ -143,15 +143,15 @@ inner = np.clip(0.5 - rrect_sd(UX, UY, gx_ + 1, gy_ + 1, gw_ - 2, gh_ - 2, 9) * 
 img = img * (1 - inner[..., None]) + glass * inner[..., None]
 
 # segments (centre lines in units); digit boxes from the source "+84" (horizontal gaps follow the width)
-SEG_T, SEG_GAP = 10.5, 1.3
-DCY = P(0, 352.0)[1]
-DH = 72.0
+SEG_T, SEG_GAP = 11.0, 1.3
+DCY = P(0, 296.0)[1]
+DH = 76.0
 YT, YM, YB = DCY - DH / 2, DCY, DCY + DH / 2
-DIG_W = 48.0
-SIGN_C = (P(820.0, 0)[0], DCY)
-TENS_C = P(911.0, 0)[0]
-UNITS_C = P(982.0, 0)[0]
-SIGN_H, SIGN_V = 24.0, 31.0
+DIG_W = 52.0
+SIGN_C = (P(800.0, 0)[0], DCY)
+TENS_C = P(915.0, 0)[0]
+UNITS_C = P(1000.0, 0)[0]
+SIGN_H, SIGN_V = 29.0, 33.0
 
 
 def hseg(x1, x2, y, t=SEG_T, g=SEG_GAP):
@@ -234,7 +234,7 @@ lit_sprite(np.clip((MIX_DOT[2] - np.hypot(UX - MIX_DOT[0], UY - MIX_DOT[1])) * A
 STATUS = (CX - 115.0, gy_ + gh_ - 36.0, 230.0, 30.0)
 
 # ------------------------------------------------------------------ 3. footswitch (photo) + jacks (photo)
-FS = (CX, P(0, 943.5)[1] + 15.0)              # lowered 30 px (user, 10 nov.)
+FS = (CX, P(0, 1007.5)[1] + 15.0)              # lowered 30 px (user, 10 nov.)
 FS_FLATS = 122.0
 FSPR, FSREFL, FS_SZ, FS_BTN = PC.footswitch_sprite(FS_FLATS, AS, refl_colour=(60.0, 160.0, 255.0))
 n = FSPR.shape[0]
@@ -249,7 +249,7 @@ RING_R = FS_BTN * 33.2 / 31.5                       # Octopus: ring in the groov
 RING_W = 2.1 * FS_BTN / 31.5
 RING_K = FS_BTN / 31.5
 
-JACK_Y = P(0, 590.0)[1]
+JACK_Y = P(0, 584.0)[1]
 alpha = body.copy()
 for side in (-1, 1):
     j, jw_u, jh_u = PC.jack_sprite(JACK_LEN, AS, side)
@@ -281,7 +281,7 @@ def save_pressed(name, cx, cy, rad_u, mask, push=1.0, dark=0.82):
 
 def tri_mask(c, s):
     # arrow triangles of the source: 68 x 76 px, tip outwards
-    w_, h_ = 66.0 * KY, 74.0 * KY
+    w_, h_ = 78.0 * KY, 88.0 * KY
     x, y = c
     return poly_mask([(x - s * w_ / 2 + s * 2, y - h_ / 2), (x + s * w_ / 2, y), (x - s * w_ / 2 + s * 2, y + h_ / 2)])
 
@@ -310,13 +310,13 @@ for old in ('ringlight', 'ring_lit', 'ring_comet'):
         os.remove(p_)
 
 # ------------------------------------------------------------------ 5. Layout.h + layout.json
-PRESET = P(758.0, 150.0) + P(1054.0, 186.0)
+PRESET = P(716.0, 57.0) + P(1090.0, 101.0)
 PRESET = (PRESET[0], PRESET[1], PRESET[2] - PRESET[0], PRESET[3] - PRESET[1])
-LABEL_Y = P(0, 500.0)[1]
-NAME_C = P(890.0, 700.0)
-LOGO_C, LOGO_W = (CX, P(0, 1092.0)[1]), 220.0
-OUT_X, IN_X = P(637.0, 0)[0], P(1163.0, 0)[0]
-TEXT_Y = P(0, 600.0)[1]
+LABEL_Y = P(0, 478.0)[1]
+NAME_C = P(890.0, 715.0)
+LOGO_C, LOGO_W = (CX, P(0, 1179.0)[1]), 220.0
+OUT_X, IN_X = P(580.0, 0)[0], P(1220.0, 0)[0]
+TEXT_Y = P(0, 590.0)[1]
 lay = {'frame': [FW, FH], 'box': [BX0, 0, BW, FH], 'preset': list(PRESET), 'glass': list(GLASS), 'status': list(STATUS),
        'arrowL': [ARROW_L[0] - 34, ARROW_L[1] - 40, 68, 80], 'arrowR': [ARROW_R[0] - 34, ARROW_R[1] - 40, 68, 80],
        'mix': [MIX[0], MIX[1], BTN_R + 6], 'fav': [FAV[0], FAV[1], BTN_R + 6], 'foot': [FS[0], FS[1], FS_FLATS * 0.56],

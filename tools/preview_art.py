@@ -73,16 +73,16 @@ def text_c(xy, t, f, fill, anchor='mm'):
     d.text((xy[0] * AS, xy[1] * AS), t, font=f, fill=fill, anchor=anchor)
 
 
-def engraved(xy, t, f, depth=1.0, anchor='mm', base=(28, 30, 33), rot=0):
+def engraved(xy, t, f, depth=1.0, anchor='mm', base=(196, 199, 204), rot=0):
     m = Image.new('L', (W, H), 0); ImageDraw.Draw(m).text((xy[0] * AS, xy[1] * AS), t, font=f, fill=255, anchor=anchor)
     if rot:
         m = m.rotate(rot, center=(xy[0] * AS, xy[1] * AS), resample=Image.BICUBIC)
     sh = ImageChops.offset(m, int(round(1.2 * depth * AS)), int(round(1.6 * depth * AS)))
     hi = ImageChops.subtract(sh, m)          # light catches the lower-right lip of the cut
     lo = ImageChops.subtract(m, ImageChops.offset(m, -int(round(1.0 * depth * AS)), -int(round(1.3 * depth * AS))))
-    canvas.paste(Image.new('RGBA', (W, H), (235, 238, 242, 255)), (0, 0), hi.point(lambda p: p * 0.55))
-    canvas.paste(Image.new('RGBA', (W, H), base + (255,)), (0, 0), m.point(lambda p: p * 0.80))
-    canvas.paste(Image.new('RGBA', (W, H), (5, 6, 8, 255)), (0, 0), lo.point(lambda p: p * 0.6))
+    canvas.paste(Image.new('RGBA', (W, H), (235, 238, 242, 255)), (0, 0), hi.point(lambda p: p * 0.35))
+    canvas.paste(Image.new('RGBA', (W, H), base + (255,)), (0, 0), m.point(lambda p: p * 0.92))
+    canvas.paste(Image.new('RGBA', (W, H), (5, 6, 8, 255)), (0, 0), lo.point(lambda p: p * 0.75))
 
 
 # preset menu text (in its milled slot)
@@ -98,13 +98,13 @@ text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY
 lf = font('Poppins-Medium.ttf', 15)
 engraved((lay['mix'][0], lay['labelY']), 'MIX', lf, 0.6)
 engraved((lay['fav'][0], lay['labelY']), 'FAV', lf, 0.6)
-engraved(tuple(lay['name']), 'Semitones', font('Poppins-Bold.ttf', 36), 1.0)
+engraved(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 38), 0.8)
 engraved((lay['outX'], lay['textY']), 'OUT', font('Poppins-SemiBold.ttf' if os.path.exists(F('Poppins-SemiBold.ttf')) else 'Poppins-Bold.ttf', 20), 1.25, rot=-90)
 engraved((lay['inX'], lay['textY']), 'IN', font('Poppins-SemiBold.ttf' if os.path.exists(F('Poppins-SemiBold.ttf')) else 'Poppins-Bold.ttf', 20), 1.25, rot=90)
-# logo (black, vector)
+# logo (white on the black pedal, vector)
 lx, ly, lw = lay['logo']
 tmp = '/tmp/claude-0/logo_prev.png'
-svg_raster.raster(os.path.join(ROOT, 'NineHandsLogo.svg'), int(lw * AS * 3000 / 2670), tmp)
+svg_raster.raster(os.path.join(ROOT, 'design', 'NineHandsLogo_white.svg'), int(lw * AS * 3000 / 2670), tmp)
 lg = Image.open(tmp).convert('RGBA'); bb = lg.getbbox(); lg = lg.crop(bb)
 canvas.alpha_composite(lg, (int(lx * AS - lg.width / 2), int(ly * AS - lg.height / 2)))
 
