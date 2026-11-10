@@ -25,14 +25,14 @@ constexpr Sprite sprites[] = {
     { "seg_u_f", { 330.00f, 158.50f, 64.00f, 73.00f } },
     { "seg_u_g", { 344.50f, 180.00f, 87.00f, 68.00f } },
     { "seg_mix", { 181.50f, 294.00f, 40.50f, 37.00f } },
-    { "press_left", { 68.50f, 176.50f, 80.00f, 80.00f } },
-    { "press_right", { 469.00f, 176.50f, 80.00f, 80.00f } },
+    { "press_left", { 64.00f, 176.50f, 80.00f, 80.00f } },
+    { "press_right", { 473.00f, 176.50f, 80.00f, 80.00f } },
     { "press_mix", { 170.00f, 349.00f, 62.50f, 62.50f } },
     { "press_fav", { 384.00f, 349.00f, 62.50f, 62.50f } },
     { "press_foot", { 233.00f, 688.00f, 151.00f, 151.00f } }
 };
-constexpr R hitLeft { 74.99f, 176.92f, 68.00f, 80.00f };
-constexpr R hitRight { 475.30f, 176.92f, 68.00f, 80.00f };
+constexpr R hitLeft { 70.23f, 176.92f, 68.00f, 80.00f };
+constexpr R hitRight { 479.27f, 176.92f, 68.00f, 80.00f };
 constexpr R hitDisplay { 159.72f, 107.54f, 298.06f, 224.63f };
 constexpr R statusBox { 193.75f, 296.18f, 230.00f, 30.00f };
 constexpr R presetBox { 162.89f, 38.54f, 296.47f, 32.30f };

@@ -161,6 +161,9 @@ def hcopy(mask, dx):
 
 
 hcopy(box(884, 682, 1040, 750), 262)
+# arrow buttons: removed, redrawn as vector reliefs by make_art_v2 (with their milled sockets)
+vcopy(box(1104, 244, 1212, 358), -112)
+vfill(box(588, 244, 694, 358))
 for k in ('mix', 'fav', 'out', 'in', 'logo'):
     x0, y0, x1, y1 = TEXTS[k]
     reg = box(x0, y0, x1, y1)

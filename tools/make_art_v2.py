@@ -98,11 +98,11 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
 
 # parts measured on the source picture (px)
 S_MIX, S_FAV, S_BTN_R = (765.0, 523.0), (1035.0, 523.0), 32.0
-S_ARL, S_ARR = (648.0, 300.0), (1153.0, 300.0)
+S_ARL, S_ARR = (642.0, 300.0), (1158.0, 300.0)
 MIX = iso_patch(*S_MIX, 36, 3)                 # button + collar only: the band around it stays continuous
 FAV = iso_patch(*S_FAV, 36, 3)
-ARROW_L = iso_patch(*S_ARL, 50, 5)
-ARROW_R = iso_patch(*S_ARR, 50, 5)
+ARROW_L = P(*S_ARL)                            # vector arrow buttons (drawn below, before FINAL)
+ARROW_R = P(*S_ARR)
 BTN_R = S_BTN_R * KY
 
 # ------------------------------------------------------------------ 2. display: rebuilt glass + dot matrix
@@ -274,34 +274,90 @@ for side in (-1, 1):
     ja = np.zeros((H, W), np.float32); ja[y0j:y0j + jh, x0j:x0j + jw] = j[..., 3] / 255.0
     alpha = np.maximum(alpha, ja)
 
-# arrows: brighter faces (like the centre of the MIX / FAV caps) with a reflection that follows the triangle:
-# a sheen along the top edge (the one facing the light), fading across the face, and a glint in the top corner
-def arrow_light(centre_u, s_src, side):
-    cx, cy = centre_u
+# arrow buttons, vector reliefs: raised rounded triangle (3-unit rounded bevel) in a milled pocket, one light
+# (top left), dark gunmetal like the MIX / FAV buttons, brushed grain of the plate kept on the face
+Lv = np.array([-0.46, -0.62, 0.64]); Lv /= np.linalg.norm(Lv)
+Hv = (Lv + np.array([0, 0, 1.0])); Hv /= np.linalg.norm(Hv)
+
+
+def poly_sd(poly):
+    dmin = np.full((H, W), 1e9, np.float32)
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        ex, ey = x1 - x0, y1 - y0
+        t = np.clip(((UX - x0) * ex + (UY - y0) * ey) / (ex * ex + ey * ey), 0, 1)
+        dmin = np.minimum(dmin, np.hypot(UX - x0 - t * ex, UY - y0 - t * ey))
+    inside = poly_mask(poly, 2) > 0.5
+    return np.where(inside, -dmin, dmin)
+
+
+def shrink(poly, r):
+    """inset a convex polygon by r (for rounded corners: sd(inset) - r)"""
+    P_ = np.array(poly, float); n = len(P_)
+    lines = []
+    for i in range(n):
+        a_, b_ = P_[i], P_[(i + 1) % n]
+        d = (b_ - a_) / np.linalg.norm(b_ - a_)
+        nn = np.array([d[1], -d[0]])
+        if np.dot(nn, P_.mean(0) - a_) < 0:
+            nn = -nn
+        lines.append((a_ + nn * r, d))
+    out = []
+    for i in range(n):
+        (p1, d1), (p2, d2) = lines[i - 1], lines[i]
+        A = np.array([d1, -d2]).T
+        t = np.linalg.solve(A, p2 - p1)
+        out.append(tuple(p1 + d1 * t[0]))
+    return out
+
+
+def vector_arrow(c, side):
+    global img
+    cx, cy = c
     k = KY
-    face = [(-31 * side, -38), (-31 * side, 38), (39 * side, 0)]                 # face corners (source px, from centre)
-    F = [(cx + fx * k, cy + fy * k) for fx, fy in face]
-    m = gblur(poly_mask(F), 0.5 * AS)
-    m = np.clip((cv2.erode(m, np.ones((5, 5), np.uint8)) - 0.05) / 0.9, 0, 1)
-    m = gblur(m, 1.2 * AS)
-    # top edge: from the top corner of the face to the tip
-    (x0, y0), (x1, y1) = F[0], F[2]
-    ex, ey = x1 - x0, y1 - y0; L_ = math.hypot(ex, ey)
-    nx_, ny_ = -ey / L_, ex / L_
+    tri = [(cx - 41 * k * side, cy - 45 * k), (cx + 42 * k * side, cy), (cx - 41 * k * side, cy + 45 * k)]
+    R = 6.0
+    sd = poly_sd(shrink(tri, R)) - R
+    BEV, HT, POCK, DEP = 3.0, 3.4, 3.0, 2.6
+    t_ = np.clip(-sd / BEV, 0, 1)
+    raise_ = HT * (1 - (1 - t_) ** 2)
+    pocket = np.clip((POCK - sd) / 1.1, 0, 1)                       # milled pocket (notch) around the triangle
+    h = raise_ - DEP * pocket
+    h = gblur(h.astype(np.float32), 0.35 * AS)
+    gy_, gx_ = np.gradient(h, 1.0 / AS)
+    nrm = np.dstack([-gx_, -gy_, np.ones_like(h)]); nrm /= np.linalg.norm(nrm, axis=2, keepdims=True)
+    ndl = np.clip(nrm @ Lv, 0, 1); ndh = np.clip(nrm @ Hv, 0, 1)
+    tri_m = np.clip(0.5 - sd * AS, 0, 1)
+    # shadow of the triangle on the pocket floor (down right)
+    shm = shift_u(tri_m, 1.4, 1.9)
+    shadow = gblur(shm, 1.4 * AS) * (1 - tri_m)
+    grain = img.mean(2) - gblur(img.mean(2), 3)                        # brushed grain of the plate
+    alb = 100.0
+    face = alb * (0.18 + 0.95 * ndl) + 95.0 * ndh ** 50 + 1.6 * grain
+    # soft sheen along the top edge (the one facing the light), much lighter than before
+    (x0, y0), (x1, y1) = tri[0], tri[1]
+    ex, ey = x1 - x0, y1 - y0; L_ = math.hypot(ex, ey); nx_, ny_ = -ey / L_, ex / L_
     if ny_ < 0:
-        nx_, ny_ = -nx_, -ny_                                                  # normal pointing into the face (down)
-    d_top = (UX - x0) * nx_ + (UY - y0) * ny_                                  # distance from the top edge (units)
-    t_along = np.clip(((UX - x0) * ex + (UY - y0) * ey) / L_ ** 2, 0, 1)      # 0 at the top corner, 1 at the tip
-    sheen = np.exp(-np.clip(d_top, 0, None) / 9.0) * (0.55 + 0.45 * np.sin(np.pi * np.clip(t_along * 1.1, 0, 1)))
-    grad = np.clip(1.0 - ((UX - F[0][0]) * 0.46 + (UY - F[0][1]) * 0.62) / (60.0 * k), 0.25, 1.0)   # brighter towards the light
-    glint = np.exp(-(((UX - (F[0][0] + 5 * side * k)) / 7.0) ** 2 + ((UY - (F[0][1] + 7 * k)) / 7.0) ** 2))
-    base = img * (1.0 + 1.35 * m)[..., None]                                   # lifts the brushed face
-    add = (m * (70.0 * sheen + 38.0 * grad + 60.0 * glint))[..., None] * np.array([0.97, 0.99, 1.02])
-    return base + add
+        nx_, ny_ = -nx_, -ny_
+    d_top = (UX - x0) * nx_ + (UY - y0) * ny_
+    face += 14.0 * np.exp(-np.clip(d_top - BEV, 0, None) / 8.0) * (sd < -BEV * 0.6)
+    gd = ((UX - cx) * -0.46 + (UY - cy) * -0.62) / (40.0 * k)          # brighter towards the light, darker at the far side
+    face += 16.0 * np.clip(gd, -1, 1)
+    face_rgb = face[..., None] * np.array([0.98, 0.99, 1.02])
+    ao = 1 - 0.7 * np.clip(1 - np.abs(sd - POCK * 0.45) / (POCK * 0.8), 0, 1)        # occlusion in the notch
+    floor = (img * 0.55 + 6) * (0.15 + 1.25 * ndl)[..., None] * ao[..., None] * (1 - 0.6 * shadow)[..., None]
+    wall_m = pocket * (1 - tri_m)
+    out = img * (1 - wall_m[..., None]) + floor * wall_m[..., None]
+    out = out * (1 - tri_m[..., None]) + face_rgb * tri_m[..., None]
+    img = out
 
 
-img = arrow_light(ARROW_L, S_ARL, -1)
-img = arrow_light(ARROW_R, S_ARR, 1)
+def shift_u(a, dx_u, dy_u):
+    return cv2.warpAffine(a, np.float32([[1, 0, dx_u * AS], [0, 1, dy_u * AS]]), (a.shape[1], a.shape[0]),
+                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+
+
+vector_arrow(ARROW_L, -1)
+vector_arrow(ARROW_R, 1)
 FINAL = np.clip(img, 0, 255)
 Image.fromarray(np.dstack([FINAL, alpha * 255]).astype(np.uint8), 'RGBA').save(os.path.join(ROOT, 'background.png'), optimize=True)
 
@@ -320,9 +376,9 @@ def save_pressed(name, cx, cy, rad_u, mask, push=1.0, dark=0.82):
 
 def tri_mask(c, s):
     # arrow triangles of the source: 68 x 76 px, tip outwards
-    w_, h_ = 78.0 * KY, 88.0 * KY
     x, y = c
-    return poly_mask([(x - s * w_ / 2 + s * 2, y - h_ / 2), (x + s * w_ / 2, y), (x - s * w_ / 2 + s * 2, y + h_ / 2)])
+    k = KY
+    return poly_mask([(x - 41 * k * s, y - 45 * k), (x + 42 * k * s, y), (x - 41 * k * s, y + 45 * k)])
 
 
 save_pressed('left', ARROW_L[0], ARROW_L[1], 40.0, gblur(tri_mask(ARROW_L, -1), 1.2))
