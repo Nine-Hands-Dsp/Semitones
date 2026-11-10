@@ -69,7 +69,7 @@ def vfill(mask):
     rgb += (real_tex() * soft * 0.55)[..., None]
 
 
-def dfill(mask, d, maxd=400):
+def dfill(mask, d, maxd=400, ymin=0):
     """interpolation along direction d (unit vector) between the nearest clean pixels on both sides"""
     global rgb
     m = mask > 0.5
@@ -94,7 +94,7 @@ def dfill(mask, d, maxd=400):
                 break
         dist[dist < 0] = maxd
         qi_, qj_ = np.clip(np.round(py + sgn * d[1] * (dist + 2)).astype(int), 0, H - 1), np.clip(np.round(px + sgn * d[0] * (dist + 2)).astype(int), 0, W - 1)
-        dist[(alpha[qi_, qj_] < 200) | (qi_ > 1212) | (qj_ > 1248) | (qj_ < 552)] = 1e4      # ray left the flat top face: ignore that side
+        dist[(alpha[qi_, qj_] < 200) | (qi_ > 1212) | (qj_ > 1248) | (qj_ < 552) | (qi_ < ymin)] = 1e4      # ray left the flat top face: ignore that side
         qx, qy = (px + sgn * d[0] * (dist + 1.0)).astype(np.float32), (py + sgn * d[1] * (dist + 1.0)).astype(np.float32)
         x0i = np.clip(np.floor(qx).astype(int), 0, W - 2); y0i = np.clip(np.floor(qy).astype(int), 0, H - 2)
         fx = np.clip(qx - x0i, 0, 1)[:, None]; fy = np.clip(qy - y0i, 0, 1)[:, None]
@@ -161,6 +161,11 @@ def hcopy(mask, dx):
 
 
 hcopy(box(884, 682, 1040, 750), 262)
+# MIX / FAV: the original caps are pasted back by make_art_v2, the counterbore around them is redrawn (vector)
+UP_DIR = np.array([1.0, 0.64]); UP_DIR /= np.linalg.norm(UP_DIR)
+# (the buttons and their recess stay: make_art_v2 draws the new counterbore over the old recess)
+  # button + FAV label
+L = rgb.mean(2)
 # arrow buttons: removed, redrawn as vector reliefs by make_art_v2 (with their milled sockets)
 vcopy(box(1104, 244, 1212, 358), -112)
 vfill(box(588, 244, 694, 358))

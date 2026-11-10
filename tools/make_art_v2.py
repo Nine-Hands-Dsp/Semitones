@@ -27,6 +27,7 @@ FW, FH = 617.5, 900.0
 W, H = int(FW * AS), int(FH * AS)
 
 src = np.asarray(Image.open(os.path.join(ROOT, 'design', 'v2src', 'clean_pedal.png')).convert('RGBA')).astype(np.float32)
+orig = np.asarray(Image.open(os.path.join(ROOT, 'design', 'v2src', 'source_pedal_black.png')).convert('RGBA')).astype(np.float32)   # original parts (MIX / FAV caps)
 SB = (537.0, 4.5, 1263.0, 1230.5)                 # enclosure in the source picture (px)
 KY = FH / (SB[3] - SB[1])                           # units per source px (iso scale)
 
@@ -87,7 +88,7 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
     n = int(math.ceil(2 * r_src * k)) + 2
     x0s, y0s = cx - r_src, cy - r_src
     Mi = np.float32([[1 / k, 0, x0s], [0, 1 / k, y0s]])            # dst -> src
-    patch = cv2.warpAffine(src[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
+    patch = cv2.warpAffine(orig[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
     yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
     d = np.hypot(xx / k + x0s - cx, yy / k + y0s - cy)
     m = np.clip((r_src - d) / feather_src, 0, 1)
@@ -99,8 +100,30 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
 # parts measured on the source picture (px)
 S_MIX, S_FAV, S_BTN_R = (765.0, 523.0), (1035.0, 523.0), 32.0
 S_ARL, S_ARR = (642.0, 300.0), (1158.0, 300.0)
-MIX = iso_patch(*S_MIX, 36, 3)                 # button + collar only: the band around it stays continuous
-FAV = iso_patch(*S_FAV, 36, 3)
+def counterbore(c, r_cap, r_bore, depth=2.4):
+    """vector counterbore (milled recess) around a round push button, lit from the top left"""
+    global img
+    cx, cy = c
+    rr_ = np.hypot(UX - cx, UY - cy)
+    Lv_ = np.array([-0.46, -0.62, 0.64]); Lv_ /= np.linalg.norm(Lv_)
+    h = -depth * np.clip((r_bore - rr_) / 0.9, 0, 1)
+    h = gblur(h.astype(np.float32), 0.3 * AS)
+    gy_, gx_ = np.gradient(h, 1.0 / AS)
+    nrm = np.dstack([-gx_, -gy_, np.ones_like(h)]); nrm /= np.linalg.norm(nrm, axis=2, keepdims=True)
+    ndl = np.clip(nrm @ Lv_, 0, 1)
+    bore = np.clip((r_bore + 0.5 - rr_) * AS, 0, 1)
+    capsh = np.clip((r_cap - np.hypot(UX - cx - 1.3, UY - cy - 1.8)) * AS, 0, 1)        # cap shadow, down right
+    capsh = gblur(capsh, 1.3 * AS)
+    ao = 1 - 0.55 * np.clip(1 - (r_bore - rr_) / (r_bore - r_cap), 0, 1) ** 0.5
+    floor = (img * 0.5 + 5) * (0.15 + 1.25 * ndl)[..., None] * ao[..., None] * (1 - 0.6 * capsh)[..., None]
+    img = img * (1 - bore[..., None]) + floor * bore[..., None]
+
+
+S_CAP_R = 30.0                                  # turned cap with its silver rim (source px)
+for c_ in (P(*S_MIX), P(*S_FAV)):
+    counterbore(c_, S_CAP_R * KY, 41.0 * KX)      # covers the old (stretched) recess entirely
+MIX = iso_patch(*S_MIX, S_CAP_R + 0.6, 1.2)     # original caps (unstretched)
+FAV = iso_patch(*S_FAV, S_CAP_R + 0.6, 1.2)
 ARROW_L = P(*S_ARL)                            # vector arrow buttons (drawn below, before FINAL)
 ARROW_R = P(*S_ARR)
 BTN_R = S_BTN_R * KY
