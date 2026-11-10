@@ -143,24 +143,13 @@ d.line([((px + pw - 22) * AS, (py + ph / 2 - 2.5) * AS), ((px + pw - 17) * AS, (
 sx, sy, sw, sh = lay['status']
 text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY OFF   ·   ') + ('%+d ST' % st),
        font('Poppins-Medium.ttf', 15.5), (70, 165, 240))
-# MIX / FAV labels, name, subtitle, IN / OUT
-lf = font('Poppins-Medium.ttf', 15)
-deboss_mask(text_mask((lay['mix'][0], lay['labelY']), 'MIX', lf), depth=0.6)
-deboss_mask(text_mask((lay['fav'][0], lay['labelY']), 'FAV', lf), depth=0.6)
-# "Semitones" logo: user's vector paths (design/Semitones_Logo.svg, drawn in the 1235 x 1800 frame of background.png)
-tmpn = '/tmp/claude-0/name_prev.png'
-svg_raster.raster(os.path.join(ROOT, 'design', 'Semitones_Logo.svg'), W, tmpn)
-nm = Image.open(tmpn).convert('RGBA').split()[3].resize((W, H), Image.LANCZOS)
-deboss_mask(nm, depth=1.0)
-deboss_mask(text_mask((lay['outX'], lay['textY']), 'OUT', font('Poppins-Bold.ttf', 20), rot=-90), depth=0.8)
-deboss_mask(text_mask((lay['inX'], lay['textY']), 'IN', font('Poppins-Bold.ttf', 20), rot=90), depth=0.8)
-# logo (white on the black pedal, vector)
-lx, ly, lw = lay['logo']
-tmp = '/tmp/claude-0/logo_prev.png'
-svg_raster.raster(os.path.join(ROOT, 'design', 'NineHandsLogo_white.svg'), int(lw * AS * 3000 / 2670), tmp)
-lg = Image.open(tmp).convert('RGBA'); bb = lg.getbbox(); lg = lg.crop(bb)
-lm = Image.new('L', (W, H), 0); lm.paste(lg.split()[3], (int(lx * AS - lg.width / 2), int(ly * AS - lg.height / 2)))
-deboss_mask(lm, depth=0.7)
+# texts: vector paths of the mockup (design/texts/*.svg, frame 1235.5 x 1800), debossed
+def svg_mask(name):
+    tmp = '/tmp/claude-0/txt_%s.png' % name
+    svg_raster.raster(os.path.join(ROOT, 'design', 'texts', name + '.svg'), W, tmp)
+    return Image.open(tmp).convert('RGBA').split()[3].resize((W, H), Image.LANCZOS)
+for nm_, dep in (('mix', 0.6), ('fav', 0.6), ('name', 1.0), ('out', 0.8), ('in', 0.8), ('logo', 0.7)):
+    deboss_mask(svg_mask(nm_), depth=dep)
 
 out = os.path.join(ROOT, 'design', OUT)
 canvas.save(out)

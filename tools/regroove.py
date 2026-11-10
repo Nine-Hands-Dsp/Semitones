@@ -306,3 +306,49 @@ def apply(old, body):
         Image.fromarray(np.clip(tone_new * 3, 0, 255).astype(np.uint8)).save('/tmp/claude-0/dbg_tone.png')
     keep = np.maximum(prot, 1 - plate)[..., None]
     return old * keep + drawn * (1 - keep), clean
+
+
+def draw_profiles(plate, light, grain, PX, PY, bands, strips, keep=3.0, fade=7.0, sharpen=0.5, base=None):
+    """v3: the bands drawn on a new plate. Each run takes the mean photo cross-section of its class (lips, creases,
+    floors: sharp, no photo blur, no photo grain), re-lit by the plate light and carrying the plate's own grain."""
+    out = (plate if base is None else base).copy()       # plate = softer grain inside the bands
+    for name, A, M, C, classes in bands:
+        nseg = len(A) - 1
+        for k in range(nseg):
+            st = strips[classes[k]]
+            prof = st['prof'].astype(np.float32)
+            if sharpen:
+                bl = cv2.GaussianBlur(prof[None], (0, 0), 1.0)[0]
+                prof = prof + sharpen * (prof - bl)
+            A0, A1, M0, M1, C0, C1 = A[k], A[k + 1], M[k], M[k + 1], C[k], C[k + 1]
+            d = (A1 - A0) / np.linalg.norm(A1 - A0)
+            n = np.array([-d[1], d[0]])
+            if (C0 - A0) @ n < 0:
+                n = -n
+            qM = 0.5 * ((M0 - A0) @ n + (M1 - A1) @ n)
+            qC = 0.5 * ((C0 - A0) @ n + (C1 - A1) @ n)
+            q = (PX - A0[0]) * n[0] + (PY - A0[1]) * n[1]
+            sel = (q > -(keep + fade)) & (q < qC + keep + fade)
+            def side(P0, P1, ref):
+                e = P1 - P0
+                s_ = (PX - P0[0]) * e[1] - (PY - P0[1]) * e[0]
+                r_ = (ref[0] - P0[0]) * e[1] - (ref[1] - P0[1]) * e[0]
+                return s_ * np.sign(r_) >= 0
+            mid = 0.25 * (A0 + A1) + 0.25 * (C0 + C1)
+            if k > 0:
+                sel &= side(A0, C0, mid)
+            if k < nseg - 1:
+                sel &= side(A1, C1, mid)
+            ys, xs = np.nonzero(sel)
+            qq = q[ys, xs]
+            kn_new = [-TM - 2, -EDGE, EDGE, qM - EDGE, qM + EDGE, qC - EDGE, qC + EDGE, qC + TM + 2]
+            kn_old = [-TM - 2, -EDGE, EDGE, st['oM'] - EDGE, st['oM'] + EDGE, st['oC'] - EDGE, st['oC'] + EDGE,
+                      st['oC'] + TM + 2]
+            ti = np.interp(qq, kn_new, kn_old) - st['t0']
+            pv = np.stack([np.interp(ti, np.arange(len(prof)), prof[:, c]) for c in range(3)], 1)
+            lum = np.clip(pv.mean(1, keepdims=True), 0, None)      # neutral: the plate's own colour and grain
+            val = lum * plate[ys, xs]
+            w = np.clip(np.minimum(qq + keep + fade, qC + keep + fade - qq) / fade, 0, 1)
+            w = w * w * (3 - 2 * w)
+            out[ys, xs] = out[ys, xs] * (1 - w[:, None]) + val * w[:, None]
+    return out
