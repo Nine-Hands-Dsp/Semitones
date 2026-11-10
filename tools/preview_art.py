@@ -122,7 +122,7 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     w_right = np.clip(ox, 0, 1) ** 1.5 * np.clip((tdown - 0.5) / 0.25, 0, 1)   # lower half of the right side
     hl = np.clip(w_bottom + w_right, 0, 1) * rim
     hl = blur(hl, 0.35 * AS) * 1.6
-    rgb += (np.clip(hl, 0, 1) * 85)[..., None]
+    rgb += (np.clip(hl, 0, 1) * 38)[..., None]                                # subtle (user, 10 nov.)
     canvas.paste(Image.fromarray(np.clip(np.dstack([rgb, al]), 0, 255).astype(np.uint8), 'RGBA'), (0, 0))
 
 
@@ -144,8 +144,8 @@ text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY
        font('Poppins-Medium.ttf', 15.5), (70, 165, 240))
 # MIX / FAV labels, name, subtitle, IN / OUT
 lf = font('Poppins-Medium.ttf', 15)
-engraved((lay['mix'][0], lay['labelY']), 'MIX', lf, 0.6)
-engraved((lay['fav'][0], lay['labelY']), 'FAV', lf, 0.6)
+deboss_mask(text_mask((lay['mix'][0], lay['labelY']), 'MIX', lf), depth=0.6)
+deboss_mask(text_mask((lay['fav'][0], lay['labelY']), 'FAV', lf), depth=0.6)
 deboss_mask(text_mask(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 38)), depth=1.0)
 deboss_mask(text_mask((lay['outX'], lay['textY']), 'OUT', font('Poppins-Bold.ttf', 20), rot=-90), depth=0.8)
 deboss_mask(text_mask((lay['inX'], lay['textY']), 'IN', font('Poppins-Bold.ttf', 20), rot=90), depth=0.8)
