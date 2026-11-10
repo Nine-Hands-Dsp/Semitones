@@ -443,7 +443,7 @@ for side in (-1, 1):
     alpha = np.maximum(alpha, ja)
 
 FINAL = np.clip(img, 0, 255)
-Image.fromarray(np.dstack([FINAL, alpha * 255]).astype(np.uint8), 'RGBA').save(os.path.join(ROOT, 'background.png'), optimize=True)
+Image.fromarray(np.dstack([FINAL, alpha * 255]).astype(np.uint8), 'RGBA').save(os.path.join(ASSETS, 'background.png'), optimize=True)
 
 
 # ------------------------------------------------------------------ 8. pressed states

@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "NineHandsMenu.h"
+
 class SemitonesLook : public juce::LookAndFeel_V4
 {
 public:
@@ -14,24 +16,17 @@ public:
     void drawComboBox (juce::Graphics&, int w, int h, bool down, int, int, int, int, juce::ComboBox&) override;
     juce::Font getComboBoxFont (juce::ComboBox&) override;
     void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
-    juce::Font getPopupMenuFont() override;
-    void drawPopupMenuBackground (juce::Graphics&, int w, int h) override;
-    void drawPopupMenuItem (juce::Graphics&, const juce::Rectangle<int>&, bool isSeparator, bool isActive,
-                            bool isHighlighted, bool isTicked, bool hasSubMenu, const juce::String& text,
-                            const juce::String& shortcutKeyText, const juce::Drawable* icon,
-                            const juce::Colour* textColour) override;
-    void drawPopupMenuSectionHeader (juce::Graphics&, const juce::Rectangle<int>&, const juce::String&) override;
 private:
     juce::Typeface::Ptr face;
 };
 
 /** Preset menu: the chosen preset is applied immediately (synchronously) when
-    the menu closes. The stock ComboBox reports the choice later through an
-    async notification, which could be overwritten by the display refresh. */
+    the menu closes. Octopus-style menu (NineHandsMenu), opened under the bar. */
 class PresetBox : public juce::ComboBox
 {
 public:
     std::function<void (int)> onPick;
+    NineHandsMenu::MenuLnf* menuLnf = nullptr;
     void showPopup() override;
     void pick (int itemId);
 };
@@ -76,6 +71,9 @@ private:
     void stepAction (int dir);
     void showMenu (Hit h);
     juce::String statusText() const;
+    void buildTexts();
+    void rebuildCacheAt (float physicalScale);
+    void drawRing (juce::Graphics&, float level) const;
     juce::String hintFor (Hit h) const;
     void askRepaint (juce::Rectangle<int> r);
     void useSoftwareRenderer();
@@ -84,7 +82,10 @@ private:
 
     SemitonesProcessor& proc;
     SemitonesLook look;
+    NineHandsMenu::MenuLnf menuLnf;
     juce::Typeface::Ptr face;
+    struct TextPath { juce::Path path; float depth; };    // vector texts of the mockup (units), debossed in the cache
+    std::vector<TextPath> texts;
     PresetBox presetBox;
     double lastPresetPickMs = 0;
 
@@ -107,7 +108,7 @@ private:
     // drawn state (redraw only what changed)
     uint32_t segMask = 0, drawnSegMask = 0xffffffffu;
     float led[1] { 0 }, drawnLed[1] { -1 };   // footswitch light ring
-    float ringAngle = 0.0f;                  // rotating light (radians)
+    float drawnGlow = -1.0f;
     int drawnPressed = -1;
     juce::String drawnStatus;
     // MIDI Learn: "<control> = CC n" shown for 2 s in the status line once learned

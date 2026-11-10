@@ -463,6 +463,7 @@ void SemitonesProcessor::getStateInformation (juce::MemoryBlock& dest)
     extra.setProperty ("favMixOn", favMixOn.load(), nullptr);
     extra.setProperty ("favMix", favMix.load(), nullptr);
     extra.setProperty ("preset", currentPreset, nullptr);
+    extra.setProperty ("glow", glowPct.load(), nullptr);
     for (int i = 0; i < (int) MidiTarget::count; ++i)
     {
         extra.setProperty ("cc" + juce::String (i), midiCC[(size_t) i].load(), nullptr);
@@ -489,6 +490,7 @@ void SemitonesProcessor::setStateInformation (const void* data, int size)
         favMixOn.store ((bool) extra.getProperty ("favMixOn", false));
         favMix.store ((float) extra.getProperty ("favMix", 50.0f));
         currentPreset = (int) extra.getProperty ("preset", 0);
+        glowPct.store (juce::jlimit (25, 100, (int) extra.getProperty ("glow", 100)));
         for (int i = 0; i < (int) MidiTarget::count; ++i)
         {
             midiCC[(size_t) i].store ((int) extra.getProperty ("cc" + juce::String (i), -1));

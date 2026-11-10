@@ -1,10 +1,10 @@
 # Semitones (NINE HANDS | DSP)
 
-Réplique VST3 de la pédale **Solar Guitars CHUG Capo** : transposition de -12 à +12 demi-tons à très faible latence (« capodastre numérique »), mode **MIX** (signal transposé + signal direct, 0 à 100 %) et mémoire **FAV**. Format pédale simple, Windows et macOS. Design NINE HANDS | DSP en acier brossé sombre sur fond béton, afficheur bleu à matrice de points, nom « Semitones » gravé, anneau lumineux bleu autour du footswitch.
+Réplique VST3 de la pédale **Solar Guitars CHUG Capo** : transposition de -12 à +12 demi-tons à très faible latence (« capodastre numérique »), mode **MIX** (signal transposé + signal direct, 0 à 100 %) et mémoire **FAV**. Format pédale simple, Windows et macOS. Design v2 : façade en aluminium brossé noir avec bandes usinées, afficheur bleu à matrice de points, textes vectoriels creusés dans le métal, anneau lumineux bleu (style Octopus) autour du footswitch, lumière en haut à gauche à 45°.
 
 ![Semitones](docs/screenshot.png)
 
-- Notice EN / FR : `docs/Semitones_Manual_EN-FR_v1.6.0.pdf`
+- Notice (français) : `docs/Semitones_Notice_FR_v2.0.0.pdf`
 - Builds prêts à installer : onglet **Actions** > dernier run > artefacts `Semitones-VST3-Windows` / `Semitones-VST3-macOS`
 
 <p align="center">
@@ -25,7 +25,7 @@ Réplique VST3 de la pédale **Solar Guitars CHUG Capo** : transposition de -12 
 | FAV | rappel / sortie de la mémoire FAV | 0,9 s : mémorise le son actuel comme FAV |
 | Footswitch | effet / bypass (bascule à l'appui) | — |
 
-Anneau bleu autour du footswitch (couleur de l'afficheur) avec une lumière à longue traînée floue et halo qui tourne (un tour en 1,6 s) : allumé = effet actif, éteint = bypass, clignotant = réglage du mix. Point bleu au-dessus de MIX dans l'afficheur quand le mode MIX est actif ; états MIX et FAV sur la ligne d'état. Clic droit sur une commande : MIDI learn (switchs à accrochage ou momentanés, pédales d'expression lissées, CC 14 bits, course apprise). Pendant l'attente la ligne d'état affiche « MIDI LEARN: move a control for … », puis 2 s « <commande> = CC n » ; « Clear MIDI » retire l'assignation. Clic droit sur le fond : sous-menu MIDI (Learn de toutes les commandes, Reset MIDI to defaults) et *Plugin size* (60 % = minimum, 75 %, 100 %, « (default) » sur la taille par défaut choisie) avec *Default size (new windows)* : taille à laquelle s'ouvrent les nouvelles fenêtres du plugin (réglage commun à toutes les instances), appliquée aussi tout de suite à la fenêtre courante.
+Anneau bleu autour du footswitch (style Octopus, intensité du halo réglable par clic droit > Glow : 25 / 50 / 75 / 100 %) : allumé = effet actif, éteint = bypass, clignotant = réglage du mix. Point bleu dans l'afficheur quand le mode MIX est actif ; ligne d'état dans l'afficheur (MIX / DRY OFF, transposition, FAV, BYPASS). Menus clic droit au design d'Octopus, ouverts à l'endroit du clic. Clic droit sur une commande : MIDI learn (switchs à accrochage ou momentanés, pédales d'expression lissées, CC 14 bits, course apprise). Pendant l'attente la ligne d'état affiche « MIDI LEARN: <commande> », puis 2 s « <commande> = CC n » ; « Clear MIDI » retire l'assignation. Clic droit sur le fond : sous-menu MIDI (Learn de toutes les commandes, Reset MIDI to defaults) et *Plugin size* (60 % = minimum, 75 %, 100 %, « (default) » sur la taille par défaut choisie) avec *Default size (new windows)* : taille à laquelle s'ouvrent les nouvelles fenêtres du plugin (réglage commun à toutes les instances), appliquée aussi tout de suite à la fenêtre courante.
 
 ## Moteur audio
 
@@ -41,7 +41,7 @@ JUCE 8.0.15, `setOpaque`, rendu logiciel forcé sous Windows (réappliqué si le
 cmake -B build && cmake --build build --config Release --target Semitones_VST3
 ```
 
-Visuel : `python3 -I tools/build_art.py` (génère `assets/` et `Layout.h` depuis `design/source_design.jpg`). Notice : `python3 -I tools/manual_images.py <dossier des captures>` puis `python3 -I tools/make_manual.py`. Outil Linux de captures + tests audio : `-DSEMITONES_BUILD_RENDER=ON`, cible `SemitonesRender`.
+Visuel : `python3 -I tools/make_art_v3.py` (génère `assets/background.png`, les sprites et `Layout.h` depuis la maquette `design/Semitones_Design_v002.svg`, la texture `design/v3src/brushed_black_4096.png` et le masque `design/Semitones_Design_Mask_v002.svg`). Notice : `python3 tools/manual_v2.py <dossier des captures> docs/Semitones_Notice_FR_v<version>.pdf`. Outil Linux de captures + tests audio : `-DSEMITONES_BUILD_RENDER=ON`, cible `SemitonesRender`.
 
 ## Historique
 

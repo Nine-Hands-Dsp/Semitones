@@ -17,7 +17,7 @@ ring_on = (sys.argv[4] != '0') if len(sys.argv) > 4 else True
 OUT = sys.argv[5] if len(sys.argv) > 5 else 'preview_v2.png'
 F = lambda n: os.path.join(ROOT, 'assets', n)
 
-bg = Image.open(os.path.join(ROOT, 'background.png')).convert('RGBA')
+bg = Image.open(os.path.join(ROOT, 'assets', 'background.png')).convert('RGBA')
 W, H = bg.size
 canvas = Image.new('RGBA', (W, H), (18, 18, 20, 255))
 canvas.alpha_composite(bg)
@@ -94,7 +94,7 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     rgb, al = c[..., :3], c[..., 3:]
     blur = lambda a, s_: np.asarray(Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(s_))).astype(np.float32) / 255.0
     depth *= 1.9                                                # deeper (user, 10 nov.)
-    dx, dy = int(round(0.9 * depth * AS)), int(round(1.2 * depth * AS))
+    dx = dy = int(round(1.05 * depth * AS))                     # light from the top left, 45 deg
     rgb[:] = rgb * (1 - mf[..., None] * 0.9) + np.array(fill, np.float32) * (mf[..., None] * 0.9)
     # soft inner shadow on the floor, along the top-left walls
     occ = blur(np.roll(np.roll(1 - mf, dx, 1), dy, 0), 0.9 * AS) * mf
@@ -102,7 +102,7 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     # walls: top-left walls dark, bottom-right lip lit
     hgt = blur(mf, 0.75 * AS)
     gy, gx = np.gradient(hgt)
-    face = (gx * -0.6 + gy * -0.8) * AS * 2.4                 # >0 : wall facing the light (bottom-right side)
+    face = (gx * -0.7071 + gy * -0.7071) * AS * 2.4                 # >0 : wall facing the light (bottom-right side)
     wall = np.clip(hgt * (1 - hgt) * 4, 0, 1)
     rgb += (np.clip(face, 0, 1) * wall * 75)[..., None]
     rgb *= (1 - np.clip(-face, 0, 1) * wall * 0.75)[..., None]
