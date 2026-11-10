@@ -77,6 +77,9 @@ img = np.zeros((H, W, 3), np.float32)
 X0B = int(round(BX0 * AS))
 img[:, X0B:X0B + bw_px] = body_rgb
 body = np.zeros((H, W), np.float32); body[:, X0B:X0B + bw_px] = body_a
+# bands of the faceplate redrawn on the user's path (design/Semitones_Design_v001.svg), photo cross-sections kept
+import regroove
+img, _ = regroove.apply(img, body)
 
 YY, XX = np.mgrid[0:H, 0:W].astype(np.float32)
 UX, UY = (XX + 0.5) / AS, (YY + 0.5) / AS
