@@ -253,6 +253,7 @@ def black_tint(rgba):
 
 
 FSPR = black_tint(FSPR)
+FSPR[..., :3] = 255.0 * np.power(np.clip(FSPR[..., :3] / 255.0, 0, 1), 1.15) * 0.80      # darker still (user, 10 nov.)
 over(img, FSPR, x0f, y0f)
 RING_R = FS_BTN * 33.2 / 31.5                       # Octopus: ring in the groove between the button and the nut
 RING_W = 2.1 * FS_BTN / 31.5
