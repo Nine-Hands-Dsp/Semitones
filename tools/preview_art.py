@@ -105,6 +105,24 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     wall = np.clip(hgt * (1 - hgt) * 4, 0, 1)
     rgb += (np.clip(face, 0, 1) * wall * 55)[..., None]
     rgb *= (1 - np.clip(-face, 0, 1) * wall * 0.5)[..., None]
+    # edge highlight inside the cut: along the bottom edges (horizontal) and up the lower half of the right edges,
+    # strongest in the bottom-right corner (user, 10 nov.)
+    import cv2
+    mb = (mf > 0.5).astype(np.uint8)
+    rim = mf - cv2.erode(mf, np.ones((3, 3), np.uint8), iterations=1)          # ~1.5 px band inside the edge
+    rim = np.clip(rim, 0, 1)
+    hs = blur(mf, 0.8 * AS); ny_, nx_ = np.gradient(hs)
+    nn = np.hypot(nx_, ny_) + 1e-6
+    ox, oy = -nx_ / nn, -ny_ / nn                                               # outward normal
+    n_lab, lab, stats, _ = cv2.connectedComponentsWithStats(mb, 8)
+    yy_ = np.mgrid[0:H, 0:W][0].astype(np.float32)
+    top = stats[lab, cv2.CC_STAT_TOP].astype(np.float32); hh = np.maximum(stats[lab, cv2.CC_STAT_HEIGHT], 1).astype(np.float32)
+    tdown = np.clip((yy_ - top) / hh, 0, 1)                                     # 0 at the top of the glyph, 1 at the bottom
+    w_bottom = np.clip(oy, 0, 1) ** 1.5
+    w_right = np.clip(ox, 0, 1) ** 1.5 * np.clip((tdown - 0.5) / 0.25, 0, 1)   # lower half of the right side
+    hl = np.clip(w_bottom + w_right, 0, 1) * rim
+    hl = blur(hl, 0.35 * AS) * 1.6
+    rgb += (np.clip(hl, 0, 1) * 85)[..., None]
     canvas.paste(Image.fromarray(np.clip(np.dstack([rgb, al]), 0, 255).astype(np.uint8), 'RGBA'), (0, 0))
 
 
