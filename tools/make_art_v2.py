@@ -274,6 +274,34 @@ for side in (-1, 1):
     ja = np.zeros((H, W), np.float32); ja[y0j:y0j + jh, x0j:x0j + jw] = j[..., 3] / 255.0
     alpha = np.maximum(alpha, ja)
 
+# arrows: brighter faces (like the centre of the MIX / FAV caps) with a reflection that follows the triangle:
+# a sheen along the top edge (the one facing the light), fading across the face, and a glint in the top corner
+def arrow_light(centre_u, s_src, side):
+    cx, cy = centre_u
+    k = KY
+    face = [(-31 * side, -38), (-31 * side, 38), (39 * side, 0)]                 # face corners (source px, from centre)
+    F = [(cx + fx * k, cy + fy * k) for fx, fy in face]
+    m = gblur(poly_mask(F), 0.5 * AS)
+    m = np.clip((cv2.erode(m, np.ones((5, 5), np.uint8)) - 0.05) / 0.9, 0, 1)
+    m = gblur(m, 1.2 * AS)
+    # top edge: from the top corner of the face to the tip
+    (x0, y0), (x1, y1) = F[0], F[2]
+    ex, ey = x1 - x0, y1 - y0; L_ = math.hypot(ex, ey)
+    nx_, ny_ = -ey / L_, ex / L_
+    if ny_ < 0:
+        nx_, ny_ = -nx_, -ny_                                                  # normal pointing into the face (down)
+    d_top = (UX - x0) * nx_ + (UY - y0) * ny_                                  # distance from the top edge (units)
+    t_along = np.clip(((UX - x0) * ex + (UY - y0) * ey) / L_ ** 2, 0, 1)      # 0 at the top corner, 1 at the tip
+    sheen = np.exp(-np.clip(d_top, 0, None) / 9.0) * (0.55 + 0.45 * np.sin(np.pi * np.clip(t_along * 1.1, 0, 1)))
+    grad = np.clip(1.0 - ((UX - F[0][0]) * 0.46 + (UY - F[0][1]) * 0.62) / (60.0 * k), 0.25, 1.0)   # brighter towards the light
+    glint = np.exp(-(((UX - (F[0][0] + 5 * side * k)) / 7.0) ** 2 + ((UY - (F[0][1] + 7 * k)) / 7.0) ** 2))
+    base = img * (1.0 + 1.35 * m)[..., None]                                   # lifts the brushed face
+    add = (m * (70.0 * sheen + 38.0 * grad + 60.0 * glint))[..., None] * np.array([0.97, 0.99, 1.02])
+    return base + add
+
+
+img = arrow_light(ARROW_L, S_ARL, -1)
+img = arrow_light(ARROW_R, S_ARR, 1)
 FINAL = np.clip(img, 0, 255)
 Image.fromarray(np.dstack([FINAL, alpha * 255]).astype(np.uint8), 'RGBA').save(os.path.join(ROOT, 'background.png'), optimize=True)
 
