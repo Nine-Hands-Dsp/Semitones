@@ -99,10 +99,10 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
 # parts measured on the source picture (px)
 S_MIX, S_FAV, S_BTN_R = (765.0, 523.0), (1035.0, 523.0), 32.0
 S_ARL, S_ARR = (648.0, 300.0), (1153.0, 300.0)
-MIX = iso_patch(*S_MIX, 42, 6)
-FAV = iso_patch(*S_FAV, 42, 6)
-ARROW_L = iso_patch(*S_ARL, 58, 9)
-ARROW_R = iso_patch(*S_ARR, 58, 9)
+MIX = iso_patch(*S_MIX, 36, 3)                 # button + collar only: the band around it stays continuous
+FAV = iso_patch(*S_FAV, 36, 3)
+ARROW_L = iso_patch(*S_ARL, 50, 5)
+ARROW_R = iso_patch(*S_ARR, 50, 5)
 BTN_R = S_BTN_R * KY
 
 # ------------------------------------------------------------------ 2. display: rebuilt glass + dot matrix

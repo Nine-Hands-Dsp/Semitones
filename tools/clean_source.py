@@ -128,23 +128,39 @@ def ink(region, thr=10, grow=3):
     return m.astype(np.float32) * region
 
 
-BAND_DIR = np.array([1.0, 0.86]); BAND_DIR /= np.linalg.norm(BAND_DIR)
+BAND_DIR = np.array([1.0, 0.8659]); BAND_DIR /= np.linalg.norm(BAND_DIR)
 
 def vcopy(mask, dy):
     global rgb
     sh = np.roll(rgb, -dy, axis=0)                      # pixel (y) <- (y + dy)
     ring = np.clip(cv2.GaussianBlur(mask, (0, 0), 6) - mask, 0, 1)
     w = ring[..., None] + 1e-6
-    corr = ((rgb * w).sum((0, 1)) / w.sum((0, 1))) - ((sh * w).sum((0, 1)) / w.sum((0, 1)))
-    m = cv2.GaussianBlur(mask, (0, 0), 3.0)[..., None]
+    g = ((rgb - sh) * w).sum((0, 1)) / w.sum((0, 1))
+    num = cv2.GaussianBlur((rgb - sh) * ring[..., None], (0, 0), 28)
+    den = cv2.GaussianBlur(ring, (0, 0), 28)[..., None]
+    corr = (num + g * 0.03) / (den + 0.03)              # local (low-frequency) tone match, global where unsure
+    m = cv2.GaussianBlur(mask, (0, 0), 4.0)[..., None]
     rgb = rgb * (1 - m) + (sh + corr) * m
 
 
 # --- printed texts
 TEXTS = {'mix': (744, 468, 792, 492), 'fav': (1010, 468, 1056, 492),
          'out': (566, 556, 596, 626), 'in': (1205, 572, 1236, 624), 'logo': (774, 1160, 1024, 1198)}
-vcopy(box(750, 690, 905, 742), -62)
-vfill(box(903, 690, 1030, 742))
+vcopy(box(742, 682, 902, 750), -70)
+def hcopy(mask, dx):
+    global rgb
+    sh = np.roll(rgb, dx, axis=1)                       # pixel (x) <- (x - dx)
+    ring = np.clip(cv2.GaussianBlur(mask, (0, 0), 6) - mask, 0, 1)
+    w = ring[..., None] + 1e-6
+    g = ((rgb - sh) * w).sum((0, 1)) / w.sum((0, 1))
+    num = cv2.GaussianBlur((rgb - sh) * ring[..., None], (0, 0), 28)
+    den = cv2.GaussianBlur(ring, (0, 0), 28)[..., None]
+    corr = (num + g * 0.03) / (den + 0.03)              # local (low-frequency) tone match, global where unsure
+    m = cv2.GaussianBlur(mask, (0, 0), 4.0)[..., None]
+    rgb = rgb * (1 - m) + (sh + corr) * m
+
+
+hcopy(box(884, 682, 1040, 750), 262)
 for k in ('mix', 'fav', 'out', 'in', 'logo'):
     x0, y0, x1, y1 = TEXTS[k]
     reg = box(x0, y0, x1, y1)
@@ -169,14 +185,26 @@ rr = np.hypot(XX - FSC[0], YY - FSC[1])
 Lm = rgb.mean(2)
 inb = (alpha > 250)
 base = np.median(Lm[(rr > 250) & (rr < 300) & inb])
-gain = np.ones((H, W), np.float32)
-prof = []
-for r0 in range(140, 252, 4):
-    sel = (rr >= r0) & (rr < r0 + 4) & inb
-    prof.append((r0 + 2, base / max(np.median(Lm[sel]), 1e-3)))
-pr = np.array(prof)
-g = np.interp(rr, pr[:, 0], np.minimum(pr[:, 1], 1.0), left=pr[0, 1], right=1.0)
-rgb *= np.where(rr < 252, g, 1.0)[..., None]
+# gain per (angle, radius): removes the blue glow (too bright) and the footswitch drop shadow (too dark)
+NA, R0, R1, DR = 24, 140, 256, 6
+th = np.mod(np.arctan2(YY - FSC[1], XX - FSC[0]), 2 * np.pi)
+radii = np.arange(R0, R1, DR) + DR / 2
+G = np.ones((NA, len(radii)), np.float32)
+for ia in range(NA):
+    asel = (th >= ia * 2 * np.pi / NA) & (th < (ia + 1) * 2 * np.pi / NA) & inb
+    for ir, r0 in enumerate(range(R0, R1, DR)):
+        sel = asel & (rr >= r0) & (rr < r0 + DR)
+        if sel.sum() > 30:
+            G[ia, ir] = base / max(np.median(Lm[sel]), 1e-3)
+G = np.clip(G, 0.55, 1.8)
+G[:, -3:] = 1.0
+G = cv2.GaussianBlur(np.concatenate([G, G, G], 0), (0, 0), sigmaX=0.8, sigmaY=1.0)[NA:2 * NA]
+fa = th / (2 * np.pi) * NA - 0.5
+fr = np.clip((rr - R0) / DR - 0.5, 0, len(radii) - 1)
+gmap = cv2.remap(np.concatenate([G, G[:1]], 0).astype(np.float32), fr.astype(np.float32), np.mod(fa, NA).astype(np.float32), cv2.INTER_LINEAR)
+gmap = np.where((rr < R1) & (rr >= R0 - 20), gmap, 1.0)
+rgb *= gmap[..., None]
+pr = np.stack([radii, np.median(G, 0)], 1)
 print('glow gain at 150/200/240', np.interp([150, 200, 240], pr[:, 0], pr[:, 1]))
 dfill(disc(FSC[0], FSC[1] + 4, 156), BAND_DIR)
 L = rgb.mean(2)
