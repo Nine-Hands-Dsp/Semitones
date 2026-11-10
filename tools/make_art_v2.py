@@ -88,7 +88,7 @@ def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
     n = int(math.ceil(2 * r_src * k)) + 2
     x0s, y0s = cx - r_src, cy - r_src
     Mi = np.float32([[1 / k, 0, x0s], [0, 1 / k, y0s]])            # dst -> src
-    patch = cv2.warpAffine(orig[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
+    patch = cv2.warpAffine(src[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
     yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
     d = np.hypot(xx / k + x0s - cx, yy / k + y0s - cy)
     m = np.clip((r_src - d) / feather_src, 0, 1)
@@ -119,11 +119,30 @@ def counterbore(c, r_cap, r_bore, depth=2.4):
     img = img * (1 - bore[..., None]) + floor * bore[..., None]
 
 
-S_CAP_R = 30.0                                  # turned cap with its silver rim (source px)
+S_REC_R = 42.0                                  # original button + its narrow recess (source px)
+
+
+def sliver_fix(c, r_src):
+    """the enclosure is widened, so the old recess became a slight ellipse: the thin crescents left outside the
+    (round) original patch are replaced by the metal just outside, along the same angle"""
+    global img
+    cx, cy = c
+    dxu, dyu = UX - cx, UY - cy
+    rr_ = np.hypot(dxu, dyu)
+    R0, R1 = r_src * KY, r_src * KX + 0.8
+    ell = (dxu / (r_src * KX + 0.6)) ** 2 + (dyu / (r_src * KY + 0.6)) ** 2 < 1.0
+    m = (ell & (rr_ > R0 - 0.6)).astype(np.float32)
+    k = (R1 + 0.6) / np.maximum(rr_, 1e-3)
+    mx = ((cx + dxu * k) * AS - 0.5).astype(np.float32); my = ((cy + dyu * k) * AS - 0.5).astype(np.float32)
+    samp = np.dstack([cv2.remap(img[..., ch], mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE) for ch in range(3)])
+    m = gblur(m, 0.4 * AS)[..., None]
+    img = img * (1 - m) + samp * m
+
+
 for c_ in (P(*S_MIX), P(*S_FAV)):
-    counterbore(c_, S_CAP_R * KY, 41.0 * KX)      # covers the old (stretched) recess entirely
-MIX = iso_patch(*S_MIX, S_CAP_R + 0.6, 1.2)     # original caps (unstretched)
-FAV = iso_patch(*S_FAV, S_CAP_R + 0.6, 1.2)
+    sliver_fix(c_, S_REC_R)
+MIX = iso_patch(*S_MIX, S_REC_R, 1.2)          # original buttons with their original (round) recess
+FAV = iso_patch(*S_FAV, S_REC_R, 1.2)
 ARROW_L = P(*S_ARL)                            # vector arrow buttons (drawn below, before FINAL)
 ARROW_R = P(*S_ARR)
 BTN_R = S_BTN_R * KY
