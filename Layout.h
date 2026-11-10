@@ -25,9 +25,6 @@ constexpr Sprite sprites[] = {
     { "seg_u_f", { 332.00f, 147.00f, 61.50f, 72.00f } },
     { "seg_u_g", { 345.50f, 169.00f, 86.50f, 66.00f } },
     { "seg_mix", { 176.50f, 297.50f, 40.50f, 40.50f } },
-    { "ringlight", { 160.50f, 604.00f, 296.00f, 296.00f } },
-    { "ring_lit", { 160.50f, 604.00f, 296.00f, 296.00f } },
-    { "ring_comet", { 180.75f, 624.00f, 256.00f, 256.00f } },
     { "press_left", { 57.00f, 176.00f, 80.00f, 80.00f } },
     { "press_right", { 480.50f, 176.00f, 80.00f, 80.00f } },
     { "press_mix", { 168.50f, 361.00f, 56.00f, 56.00f } },
@@ -42,8 +39,8 @@ constexpr R presetBox { 158.75f, 30.00f, 300.00f, 34.00f };
 constexpr R box { 22.00f, 0.00f, 573.50f, 900.00f };
 constexpr float mixX = 196.75f, mixY = 389.00f, mixR = 26.00f;
 constexpr float favX = 420.75f, favY = 389.00f, favR = 26.00f;
-constexpr float footX = 308.75f, footY = 752.00f, footR = 92.00f;
-constexpr float ringX = 308.75f, ringY = 752.00f;
+constexpr float footX = 308.75f, footY = 752.00f, footR = 62.72f;
+constexpr float ringX = 308.75f, ringY = 752.00f, ringR = 44.72f, ringW = 2.83f, ringK = 1.35f;
 constexpr float labelY = 354.00f, nameX = 300.75f, nameY = 536.00f, subY = 567.00f;
 constexpr float jackY = 438.00f, outX = 48.00f, inX = 569.50f;
 constexpr float logoX = 308.75f, logoY = 876.00f, logoW = 168.00f;

@@ -53,7 +53,7 @@ def U(ox, oy):
     return (BX0 + (ox - 230.0) * BW / 1054.0, (oy - 26.0) * FH / 1805.0)
 
 SCREW_R = 13.0
-SCREWS = [(BX0 + 42, 28), (BX1 - 42, 28), (BX0 + 42, FH - 30), (BX1 - 42, FH - 30)]
+SCREWS = []                                            # no screws (user, 10 nov.)
 PRESET = (CX - 150.0, 30.0, 300.0, 34.0)               # preset menu (drawn by the plugin) in a milled slot
 GLASS = (CX - 156.0, 94.0, 312.0, 244.0)               # display window (x, y, w, h)
 ARROW_W, ARROW_H = 54.0, 62.0
@@ -389,14 +389,6 @@ fa = np.zeros((H, W), np.float32); n = FSPR.shape[0]
 x0f, y0f = int(round((FS[0] - FS_SZ / 2) * AS)), int(round((FS[1] - FS_SZ / 2) * AS))
 fa[y0f:y0f + n, x0f:x0f + n] = np.clip((FSPR[..., 3] / 255.0 - 0.86) / 0.14, 0, 1)
 occlusion(fa, 0.9)
-# light ring groove around the nut (unlit pipe: frosted, slightly cool), drawn before the nut
-rr = np.hypot(UX - FS[0], UY - FS[1])
-band = np.clip(RING_W / 2 - np.abs(rr - RING_R) + 0.5, 0, 1)
-groove = np.clip(RING_W / 2 + 1.6 - np.abs(rr - RING_R) + 0.5, 0, 1)
-img *= (1 - 0.55 * (groove - band))[..., None]
-ang_l = ((-(UX - FS[0])) * 0.6 + (-(UY - FS[1])) * 0.8) / np.maximum(rr, 1e-3)
-pipe_off = np.array([118.0, 124.0, 134.0]) * (0.82 + 0.18 * ang_l * np.sign(rr - RING_R + 1e-3))[..., None]
-img = img * (1 - band[..., None]) + pipe_off * band[..., None]
 over(img, FSPR, x0f, y0f)
 
 alpha = body.copy()
@@ -421,57 +413,11 @@ for side in (-1, 1):
 FINAL = np.clip(img, 0, 255)
 Image.fromarray(np.dstack([FINAL, alpha * 255]).astype(np.uint8), 'RGBA').save(os.path.join(ROOT, 'background.png'), optimize=True)
 
-# ------------------------------------------------------------------ 5. light ring sprites (thinner ring + rotating light)
-print('ring...')
-COL = srgb2lin(LIT)
-CORE = srgb2lin(np.array([70.0, 185.0, 255.0]) / 255.0)
-F01 = FINAL / 255.0
-dr = np.abs(rr - RING_R)
-src_h = 5.5 * AS
-E = (src_h ** 2 / ((dr * AS) ** 2 + src_h ** 2)) ** 1.5
-illum = np.clip(E * 1.35 + np.exp(-dr / 26.0) * 0.32, 0, 3) * (1 - band) * body
-lin = srgb2lin(F01)
-target = lin2srgb(lin + lin * illum[..., None] * COL * 2.4 + illum[..., None] * COL * 0.025)
-diff = np.clip(target - F01, 0, 1)
-a_ = np.clip(np.maximum(diff.max(2) / np.maximum(1 - F01.max(2), 0.02), diff.max(2) * 3.0), 0, 1)
-colr = np.clip(np.where(a_[..., None] > 1e-4, (target - F01 * (1 - a_[..., None])) / np.maximum(a_[..., None], 1e-4), 0), 0, 1)
-box = int((RING_R + 60) * AS)
-bx_, by_ = int(FS[0] * AS) - box, int(FS[1] * AS) - box
-def save_box(name, rgb, a):
-    rgba = np.dstack([rgb, a])[by_:by_ + 2 * box, bx_:bx_ + 2 * box]
-    Image.fromarray((np.clip(rgba, 0, 1) * 255 + 0.5).astype(np.uint8), 'RGBA').save(os.path.join(ASSETS, name + '.png'), optimize=True)
-    sprites[name] = (bx_ / AS, by_ / AS, 2 * box / AS, 2 * box / AS)
-save_box('ringlight', colr, a_)
-relc = 1 - np.clip(dr / (RING_W / 2), 0, 1)
-pipe = lin2srgb(CORE[None, None, :] * (relc ** 1.5)[..., None] * 0.55 + COL[None, None, :] * (0.55 + 0.35 * (1 - relc))[..., None])
-bloom = gblur(band, 2.2 * AS) * 0.5 + gblur(band, 6 * AS) * 0.26
-a_h = np.clip(bloom * (1 - band), 0, 1)
-o_rgb = pipe * band[..., None] + lin2srgb(COL)[None, None, :] * a_h[..., None]
-o_a = np.clip(band + a_h, 0, 1)
-o_rgb = np.where(o_a[..., None] > 1e-4, o_rgb / np.maximum(o_a[..., None], 1e-4), 0)
-save_box('ring_lit', o_rgb, o_a)
-# comet: square sprite centred on the ring centre, rotated by the editor
-half = int(math.ceil((RING_R + 40) * AS)); cs = 2 * half
-yy2, xx2 = np.mgrid[0:cs, 0:cs].astype(np.float32)
-ddx, ddy = (xx2 + 0.5 - half) / AS, (yy2 + 0.5 - half) / AS
-d2 = np.hypot(ddx, ddy)
-phi = np.mod(-np.arctan2(ddy, ddx), 2 * np.pi)
-prof = np.exp(-phi / 3.4) * np.clip(1 - phi / (1.9 * np.pi), 0, 1) ** 1.15
-headp = np.exp(-(phi / 0.38) ** 2) + np.exp(-((2 * np.pi - phi) / 0.14) ** 2) * 0.8
-band2 = np.clip(RING_W / 2 - np.abs(d2 - RING_R) + 0.5, 0, 1)
-src_ = band2 * np.clip(prof + 0.8 * headp, 0, 1.6)
-def nblur(a, sg):
-    return gblur(a, sg) / (gblur(band2, sg).max() + 1e-6)
-core = nblur(src_, 1.6 * AS)
-halo = nblur(src_, 4.5 * AS) * 0.85 + nblur(src_, 10 * AS) * 0.6 + nblur(src_, 20 * AS) * 0.4 + nblur(band2 * headp, 14 * AS) * 0.55
-hot = nblur(band2 * headp, 2.0 * AS)
-blue_s, pipe_c, hot_s = lin2srgb(COL * 1.15), lin2srgb(COL * 1.6 + CORE * 0.35), lin2srgb(CORE * 1.6)
-wc, wh, wt = np.clip(core * 1.05, 0, 1), np.clip(halo * 0.68, 0, 0.85), np.clip(hot * 0.9, 0, 1)
-ca = np.clip(1 - (1 - wc) * (1 - wh), 0, 1)
-crgb = (pipe_c * wc[..., None] + blue_s * (wh * (1 - wc))[..., None]) / np.maximum(ca[..., None], 1e-4)
-crgb = np.clip(crgb * (1 - wt[..., None]) + hot_s * wt[..., None], 0, 1)
-Image.fromarray((np.dstack([crgb, ca]) * 255 + 0.5).astype(np.uint8), 'RGBA').save(os.path.join(ASSETS, 'ring_comet.png'), optimize=True)
-sprites['ring_comet'] = (FS[0] - half / AS, FS[1] - half / AS, cs / AS, cs / AS)
+# 5. light ring: drawn by the plugin as in Octopus (thin lit ring in the groove between the button and the nut)
+RING_R = FS_BTN * 33.2 / 31.5
+RING_W = 2.1 * FS_BTN / 31.5
+RING_K = FS_BTN / 31.5                                 # scale of Octopus' halo strokes (13 -> 3 units)
+print('ring', RING_R, RING_W, RING_K)
 
 # ------------------------------------------------------------------ 6. pressed states
 def save_pressed(name, cx, cy, rad_u, mask, push=1.0, dark=0.82):
@@ -509,8 +455,8 @@ sprites['press_foot'] = (X0 / AS, Y0 / AS, n_ / AS, n_ / AS)
 # ------------------------------------------------------------------ 7. Layout.h + layout.json
 lay = {'frame': [FW, FH], 'box': [BX0, BY0, BW, FH], 'preset': list(PRESET), 'glass': list(GLASS), 'status': list(STATUS),
        'arrowL': [ARROW_L[0] - 34, ARROW_L[1] - 40, 68, 80], 'arrowR': [ARROW_R[0] - 34, ARROW_R[1] - 40, 68, 80],
-       'mix': [MIX[0], MIX[1], BTN_R + 6], 'fav': [FAV[0], FAV[1], BTN_R + 6], 'foot': [FS[0], FS[1], RING_R + 4],
-       'ring': [FS[0], FS[1]], 'jackY': JACK_Y, 'jackL': BX0 / 2, 'jackR': BX1 + JP / 2,
+       'mix': [MIX[0], MIX[1], BTN_R + 6], 'fav': [FAV[0], FAV[1], BTN_R + 6], 'foot': [FS[0], FS[1], FS_FLATS * 0.56],
+       'ring': [FS[0], FS[1], RING_R, RING_W, RING_K], 'jackY': JACK_Y, 'jackL': BX0 / 2, 'jackR': BX1 + JP / 2,
        'labelY': LABEL_Y, 'name': list(NAME_C), 'subY': SUB_Y, 'logo': [LOGO_C[0], LOGO_C[1], LOGO_W],
        'outX': BX0 + 26, 'inX': BX1 - 26, 'sprites': sprites}
 json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
@@ -528,7 +474,7 @@ with open(os.path.join(ROOT, 'Layout.h'), 'w') as fo:
     fo.write(f"constexpr R box {R4((BX0, BY0, BW, FH))};\n")
     for k in ('mix', 'fav', 'foot'):
         fo.write(f"constexpr float {k}X = {F(lay[k][0])}, {k}Y = {F(lay[k][1])}, {k}R = {F(lay[k][2])};\n")
-    fo.write(f"constexpr float ringX = {F(FS[0])}, ringY = {F(FS[1])};\n")
+    fo.write(f"constexpr float ringX = {F(FS[0])}, ringY = {F(FS[1])}, ringR = {F(RING_R)}, ringW = {F(RING_W)}, ringK = {F(RING_K)};\n")
     fo.write(f"constexpr float labelY = {F(LABEL_Y)}, nameX = {F(NAME_C[0])}, nameY = {F(NAME_C[1])}, subY = {F(SUB_Y)};\n")
     fo.write(f"constexpr float jackY = {F(JACK_Y)}, outX = {F(BX0 + 26)}, inX = {F(BX1 - 26)};\n")
     fo.write(f"constexpr float logoX = {F(LOGO_C[0])}, logoY = {F(LOGO_C[1])}, logoW = {F(LOGO_W)};\n")

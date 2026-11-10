@@ -34,8 +34,27 @@ def put(name, opacity=1.0, rot=None):
 
 
 # ring: faceplate light + lit pipe + comet
+def octo_ring(lvl=1.0, col=(40, 168, 255)):
+    """Octopus drawRing(): halo strokes 13 -> 3 (alpha .045), diffuser (alpha .85), lighter core (alpha .9)"""
+    cx, cy, R, Wd, K = lay['ring']
+    SS = 4
+    def stroke(width_u, rgb, a):
+        m = Image.new('L', (W * SS, H * SS), 0)
+        r0, r1 = (R - width_u / 2) * AS * SS, (R + width_u / 2) * AS * SS
+        dd = ImageDraw.Draw(m)
+        dd.ellipse((cx * AS * SS - r1, cy * AS * SS - r1, cx * AS * SS + r1, cy * AS * SS + r1), fill=255)
+        dd.ellipse((cx * AS * SS - r0, cy * AS * SS - r0, cx * AS * SS + r0, cy * AS * SS + r0), fill=0)
+        m = m.resize((W, H), Image.BOX).point(lambda p: int(p * a * lvl))
+        canvas.paste(Image.new('RGBA', (W, H), rgb + (255,)), (0, 0), m)
+    hw = 13.0
+    while hw > 3.0:
+        stroke(hw * K, col, 0.045); hw -= 1.5
+    stroke(Wd, col, 0.85)
+    core = tuple(int(c + (255 - c) * 0.55) for c in col)
+    stroke(Wd * 0.42, core, 0.9)
+
 if ring_on:
-    put('ringlight', 0.85); put('ring_lit', 0.9); put('ring_comet', 1.0, rot=ang)
+    octo_ring()
 # display value
 segs = {0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg'}
 v = abs(st)
