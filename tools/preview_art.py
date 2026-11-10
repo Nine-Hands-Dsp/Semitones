@@ -93,18 +93,19 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     c = np.asarray(canvas).astype(np.float32)
     rgb, al = c[..., :3], c[..., 3:]
     blur = lambda a, s_: np.asarray(Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(s_))).astype(np.float32) / 255.0
+    depth *= 1.9                                                # deeper (user, 10 nov.)
     dx, dy = int(round(0.9 * depth * AS)), int(round(1.2 * depth * AS))
     rgb[:] = rgb * (1 - mf[..., None] * 0.9) + np.array(fill, np.float32) * (mf[..., None] * 0.9)
     # soft inner shadow on the floor, along the top-left walls
-    occ = blur(np.roll(np.roll(1 - mf, dx, 1), dy, 0), 0.8 * AS) * mf
-    rgb *= (1 - 0.45 * occ)[..., None]
+    occ = blur(np.roll(np.roll(1 - mf, dx, 1), dy, 0), 0.9 * AS) * mf
+    rgb *= (1 - 0.72 * occ)[..., None]
     # walls: top-left walls dark, bottom-right lip lit
-    hgt = blur(mf, 0.55 * AS)
+    hgt = blur(mf, 0.75 * AS)
     gy, gx = np.gradient(hgt)
     face = (gx * -0.6 + gy * -0.8) * AS * 2.4                 # >0 : wall facing the light (bottom-right side)
     wall = np.clip(hgt * (1 - hgt) * 4, 0, 1)
-    rgb += (np.clip(face, 0, 1) * wall * 55)[..., None]
-    rgb *= (1 - np.clip(-face, 0, 1) * wall * 0.5)[..., None]
+    rgb += (np.clip(face, 0, 1) * wall * 75)[..., None]
+    rgb *= (1 - np.clip(-face, 0, 1) * wall * 0.75)[..., None]
     # edge highlight inside the cut: along the bottom edges (horizontal) and up the lower half of the right edges,
     # strongest in the bottom-right corner (user, 10 nov.)
     import cv2
