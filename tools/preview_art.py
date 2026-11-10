@@ -85,6 +85,34 @@ def engraved(xy, t, f, depth=1.0, anchor='mm', base=(196, 199, 204), rot=0):
     canvas.paste(Image.new('RGBA', (W, H), (5, 6, 8, 255)), (0, 0), lo.point(lambda p: p * 0.75))
 
 
+def emboss_mask(m, fill=(188, 191, 196), height=1.0):
+    """light, natural emboss: raised lettering with soft bevel lit from the top left, soft shadow to the bottom right"""
+    import numpy as np
+    mf = np.asarray(m).astype(np.float32) / 255.0
+    c = np.asarray(canvas).astype(np.float32)
+    rgb, al = c[..., :3], c[..., 3:]
+    blur = lambda a, s_: np.asarray(Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(s_))).astype(np.float32) / 255.0
+    sh = blur(np.roll(np.roll(mf, int(round(1.1 * height * AS)), 1), int(round(1.5 * height * AS)), 0), 1.4 * AS)
+    rgb *= (1 - 0.55 * sh * (1 - mf))[..., None]                              # soft cast shadow
+    hgt = blur(mf, 0.9 * AS)
+    gy, gx = np.gradient(hgt)
+    shade = -(gx * -0.6 + gy * -0.8) * AS * 2.2                               # >0 : faces towards the light
+    fillc = np.array(fill, np.float32)
+    lit = fillc
+    rgb[:] = rgb * (1 - mf[..., None] * 0.94) + lit * (mf[..., None] * 0.94)
+    edge = np.clip(shade, -1, 1) * np.clip(hgt * (1 - hgt) * 4, 0, 1)
+    rgb += (np.clip(edge, 0, 1) * 70)[..., None]
+    rgb *= (1 + np.clip(edge, -1, 0) * 0.55)[..., None]
+    canvas.paste(Image.fromarray(np.clip(np.dstack([rgb, al]), 0, 255).astype(np.uint8), 'RGBA'), (0, 0))
+
+
+def text_mask(xy, t, f, rot=0):
+    m = Image.new('L', (W, H), 0); ImageDraw.Draw(m).text((xy[0] * AS, xy[1] * AS), t, font=f, fill=255, anchor='mm')
+    if rot:
+        m = m.rotate(rot, center=(xy[0] * AS, xy[1] * AS), resample=Image.BICUBIC)
+    return m
+
+
 # preset menu text (in its milled slot)
 px, py, pw, ph = lay['preset']
 text_c((px + pw / 2, py + ph / 2 + 0.5), 'Custom', font('Poppins-Medium.ttf', 19), (225, 230, 236))
@@ -98,15 +126,16 @@ text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY
 lf = font('Poppins-Medium.ttf', 15)
 engraved((lay['mix'][0], lay['labelY']), 'MIX', lf, 0.6)
 engraved((lay['fav'][0], lay['labelY']), 'FAV', lf, 0.6)
-engraved(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 38), 0.8)
-engraved((lay['outX'], lay['textY']), 'OUT', font('Poppins-SemiBold.ttf' if os.path.exists(F('Poppins-SemiBold.ttf')) else 'Poppins-Bold.ttf', 20), 1.25, rot=-90)
-engraved((lay['inX'], lay['textY']), 'IN', font('Poppins-SemiBold.ttf' if os.path.exists(F('Poppins-SemiBold.ttf')) else 'Poppins-Bold.ttf', 20), 1.25, rot=90)
+emboss_mask(text_mask(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 38)), height=1.0)
+emboss_mask(text_mask((lay['outX'], lay['textY']), 'OUT', font('Poppins-Bold.ttf', 20), rot=-90), height=0.8)
+emboss_mask(text_mask((lay['inX'], lay['textY']), 'IN', font('Poppins-Bold.ttf', 20), rot=90), height=0.8)
 # logo (white on the black pedal, vector)
 lx, ly, lw = lay['logo']
 tmp = '/tmp/claude-0/logo_prev.png'
 svg_raster.raster(os.path.join(ROOT, 'design', 'NineHandsLogo_white.svg'), int(lw * AS * 3000 / 2670), tmp)
 lg = Image.open(tmp).convert('RGBA'); bb = lg.getbbox(); lg = lg.crop(bb)
-canvas.alpha_composite(lg, (int(lx * AS - lg.width / 2), int(ly * AS - lg.height / 2)))
+lm = Image.new('L', (W, H), 0); lm.paste(lg.split()[3], (int(lx * AS - lg.width / 2), int(ly * AS - lg.height / 2)))
+emboss_mask(lm, height=0.7)
 
 out = os.path.join(ROOT, 'design', OUT)
 canvas.save(out)
