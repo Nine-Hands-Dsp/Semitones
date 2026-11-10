@@ -43,5 +43,5 @@ constexpr float footX = 308.75f, footY = 752.65f, footR = 68.32f;
 constexpr float ringX = 308.75f, ringY = 752.65f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
 constexpr float labelY = 346.32f, nameX = 299.09f, nameY = 522.79f;
 constexpr float jackY = 425.74f, textY = 434.56f, outX = 54.77f, inX = 562.73f;
-constexpr float logoX = 308.75f, logoY = 868.68f, logoW = 168.00f;
+constexpr float logoX = 308.75f, logoY = 868.68f, logoW = 220.00f;
 }
