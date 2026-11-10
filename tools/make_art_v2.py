@@ -244,6 +244,15 @@ fa[y0f:y0f + n, x0f:x0f + n] = np.clip((FSPR[..., 3] / 255.0 - 0.86) / 0.14, 0, 
 contact = gblur(fa, 3.0 * AS); soft = gblur(fa, 12.0 * AS)
 o = np.clip(contact * 0.55 + soft * 0.8, 0, 0.5) * 0.9 * (1.0 - fa)
 img *= (1.0 - o * body)[..., None]
+def black_tint(rgba):
+    """light black tint (dark gunmetal like the MIX / FAV buttons and the arrows of the user's picture)"""
+    out = rgba.astype(np.float32).copy()
+    c = out[..., :3] * np.array([0.9675, 1.0087, 1.047], np.float32)       # neutral (the photos are warm)
+    out[..., :3] = 255.0 * np.power(np.clip(c / 255.0, 0, 1), 1.25) * 0.85
+    return out
+
+
+FSPR = black_tint(FSPR)
 over(img, FSPR, x0f, y0f)
 RING_R = FS_BTN * 33.2 / 31.5                       # Octopus: ring in the groove between the button and the nut
 RING_W = 2.1 * FS_BTN / 31.5
@@ -259,6 +268,7 @@ for side in (-1, 1):
     occ = np.zeros((H, W), np.float32); occ[y0j:y0j + jh, x0j:x0j + jw] = j[..., 3] / 255.0
     oo = np.clip(gblur(occ, 3 * AS) * 0.9 + gblur(occ, 16 * AS) * 1.4, 0, 0.55) * (0.25 if side > 0 else 0.12)
     img *= (1 - oo * body)[..., None]
+    j = black_tint(j)
     over(img, j, x0j, y0j)
     ja = np.zeros((H, W), np.float32); ja[y0j:y0j + jh, x0j:x0j + jw] = j[..., 3] / 255.0
     alpha = np.maximum(alpha, ja)
