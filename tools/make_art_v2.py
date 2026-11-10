@@ -234,7 +234,7 @@ lit_sprite(np.clip((MIX_DOT[2] - np.hypot(UX - MIX_DOT[0], UY - MIX_DOT[1])) * A
 STATUS = (CX - 115.0, gy_ + gh_ - 36.0, 230.0, 30.0)
 
 # ------------------------------------------------------------------ 3. footswitch (photo) + jacks (photo)
-FS = (CX, P(0, 1007.5)[1] + 20.0)              # lowered 30 px (user, 10 nov.)
+FS = (CX, P(0, 1007.5)[1] + 27.5)              # lowered 30 + 10 + 15 px (user, 10 nov.)
 FS_FLATS = 122.0
 FSPR, FSREFL, FS_SZ, FS_BTN = PC.footswitch_sprite(FS_FLATS, AS, refl_colour=(60.0, 160.0, 255.0))
 n = FSPR.shape[0]
