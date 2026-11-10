@@ -53,7 +53,21 @@ y_off = SB[1] - int(SB[1] - 1)
 bw_px, bh_px = int(round(BW * AS)), H
 M = np.float32([[bw_px / (SB[2] - SB[0]), 0, 0], [0, bh_px / (SB[3] - SB[1]), -y_off * bh_px / (SB[3] - SB[1])]])
 pm = crop.copy(); pm[..., :3] *= pm[..., 3:4] / 255.0
-warped = cv2.warpAffine(pm, M, (bw_px, bh_px), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT)
+# inverse map dst -> crop px; around MIX / FAV the stretch fades to an isotropic scale, so the round buttons and
+# their recess stay round and the metal around them bends smoothly (no patch, no seam)
+yyd, xxd = np.mgrid[0:bh_px, 0:bw_px].astype(np.float32)
+sx_ = (SB[2] - SB[0]) / bw_px; sy_ = (SB[3] - SB[1]) / bh_px
+mapx = (xxd + 0.5) * sx_ - 0.5
+mapy = (yyd + 0.5) * sy_ - 0.5 + y_off
+for (bxs, bys) in ((765.0, 523.0), (1035.0, 523.0)):
+    cxs, cys = bxs - int(SB[0]), bys - int(SB[1] - 1)               # crop px
+    cxd, cyd = (cxs + 0.5) / sx_ - 0.5, (cys - y_off + 0.5) / sy_ - 0.5   # dst px
+    dxd, dyd = xxd - cxd, yyd - cyd
+    rd = np.hypot(dxd * sx_, dyd * sy_)                              # source px
+    w = np.clip((rd - 46.0) / 22.0, 0, 1); w = w * w * (3 - 2 * w)
+    iso_x = cxs + dxd * sy_                                          # isotropic: same scale as vertical
+    mapx = mapx * w + iso_x * (1 - w)
+warped = cv2.remap(pm, mapx.astype(np.float32), mapy.astype(np.float32), cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT)
 a_ = np.clip(warped[..., 3:4], 0, 255)
 body_rgb = np.where(a_ > 0.5, warped[..., :3] * 255.0 / np.maximum(a_, 1e-3), 0)
 body_a = np.clip(a_[..., 0] / 255.0, 0, 1)
@@ -82,13 +96,13 @@ def over(dst, rgba, x0, y0):
     dst[Y0 + sy0:Y0 + ey, X0 + sx0:X0 + ex] = reg * (1 - a) + rgba[sy0:ey, sx0:ex, :3] * a
 
 
-def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None):
+def iso_patch(cx, cy, r_src, feather_src, shape='disc', tri=None, use_orig=False):
     """unstretched (iso scale) copy of a round / triangular part of the source, pasted at its widened position"""
     k = KY * AS                                                    # px per source px
     n = int(math.ceil(2 * r_src * k)) + 2
     x0s, y0s = cx - r_src, cy - r_src
     Mi = np.float32([[1 / k, 0, x0s], [0, 1 / k, y0s]])            # dst -> src
-    patch = cv2.warpAffine(src[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
+    patch = cv2.warpAffine((orig if use_orig else src)[..., :3], Mi, (n, n), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP)
     yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
     d = np.hypot(xx / k + x0s - cx, yy / k + y0s - cy)
     m = np.clip((r_src - d) / feather_src, 0, 1)
@@ -139,10 +153,8 @@ def sliver_fix(c, r_src):
     img = img * (1 - m) + samp * m
 
 
-for c_ in (P(*S_MIX), P(*S_FAV)):
-    sliver_fix(c_, S_REC_R)
-MIX = iso_patch(*S_MIX, S_REC_R, 1.2)          # original buttons with their original (round) recess
-FAV = iso_patch(*S_FAV, S_REC_R, 1.2)
+MIX = P(*S_MIX)                                 # buttons kept from the picture (round, see the warp above)
+FAV = P(*S_FAV)
 ARROW_L = P(*S_ARL)                            # vector arrow buttons (drawn below, before FINAL)
 ARROW_R = P(*S_ARR)
 BTN_R = S_BTN_R * KY
@@ -372,7 +384,7 @@ def vector_arrow(c, side):
     # shadow of the triangle on the pocket floor (down right)
     shm = shift_u(tri_m, 1.4, 1.9)
     shadow = gblur(shm, 1.4 * AS) * (1 - tri_m)
-    grain = img.mean(2) - gblur(img.mean(2), 3)                        # brushed grain of the plate
+    grain = np.clip(img.mean(2) - gblur(img.mean(2), 3), -5, 5)       # brushed grain of the plate (no edges)
     alb = 100.0
     face = alb * (0.18 + 0.95 * ndl) + 95.0 * ndh ** 50 + 1.6 * grain
     # soft sheen along the top edge (the one facing the light), much lighter than before
@@ -450,7 +462,7 @@ for old in ('ringlight', 'ring_lit', 'ring_comet'):
 PRESET = P(716.0, 57.0) + P(1090.0, 101.0)
 PRESET = (PRESET[0], PRESET[1], PRESET[2] - PRESET[0], PRESET[3] - PRESET[1])
 LABEL_Y = P(0, 478.0)[1]
-NAME_C = P(890.0, 715.0)
+NAME_C = P(890.0, 715.0 + 17.5 / KY)          # centred in the band frame (user, 10 nov.)
 LOGO_C, LOGO_W = (CX, P(0, 1179.0)[1]), 195.0
 OUT_X, IN_X = P(580.0, 0)[0], P(1220.0, 0)[0]
 TEXT_Y = P(0, 590.0)[1]

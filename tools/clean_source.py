@@ -69,7 +69,7 @@ def vfill(mask):
     rgb += (real_tex() * soft * 0.55)[..., None]
 
 
-def dfill(mask, d, maxd=400, ymin=0):
+def dfill(mask, d, maxd=400, ymin=0, write=None):
     """interpolation along direction d (unit vector) between the nearest clean pixels on both sides"""
     global rgb
     m = mask > 0.5
@@ -106,8 +106,10 @@ def dfill(mask, d, maxd=400, ymin=0):
     new = rgb.copy()
     new[ys, xs] = v2 * (1 - t) + v1 * t
     f = np.clip(cv2.GaussianBlur(m.astype(np.float32), (0, 0), 4) * 2 - 0.15, 0, 1)[..., None] * m[..., None]
+    if write is not None:
+        f = f * write[..., None]
     rgb = rgb * (1 - f) + new * f
-    soft = cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.5)
+    soft = cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.5) * (1 if write is None else write)
     rgb += (real_tex() * soft * 0.9)[..., None]
 
 
@@ -168,7 +170,17 @@ UP_DIR = np.array([1.0, 0.64]); UP_DIR /= np.linalg.norm(UP_DIR)
 L = rgb.mean(2)
 # arrow buttons: removed, redrawn as vector reliefs by make_art_v2 (with their milled sockets)
 vcopy(box(1104, 244, 1212, 358), -112)
-vfill(box(588, 244, 694, 358))
+# left arrow: vertical brushing => copy columns from above (x < 664); next to the vertical band (x >= 664) the
+# hole is filled with the rows just above / below reflected (seamless at both edges)
+vcopy(box(586, 244, 666, 360), -106)
+y0_, y1_ = 244, 360
+tex_ = real_tex()
+for x in range(662, 705):
+    ca = np.median(rgb[205:240, x], 0); cb = np.median(rgb[362:395, x], 0)
+    t = ((np.arange(y0_, y1_) - y0_) / (y1_ - y0_))[:, None]
+    col = ca[None] * (1 - t) + cb[None] * t + tex_[y0_:y1_, x][:, None] * 0.9
+    w = np.clip((x - 662) / 4.0, 0, 1)                          # blend with the vcopy result on the left
+    rgb[y0_:y1_, x] = rgb[y0_:y1_, x] * (1 - w) + col * w
 for k in ('mix', 'fav', 'out', 'in', 'logo'):
     x0, y0, x1, y1 = TEXTS[k]
     reg = box(x0, y0, x1, y1)
@@ -179,6 +191,10 @@ for k in ('mix', 'fav', 'out', 'in', 'logo'):
     inp = cv2.inpaint(img8, m, 4, cv2.INPAINT_TELEA).astype(np.float32)
     soft = cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.0)[..., None]
     rgb = rgb * (1 - soft) + (inp + real_tex()[..., None] * 0.5) * soft
+L = rgb.mean(2)
+# MIX / FAV: the old recess and its shadow (ring r 32..50 around each button) are filled along the metal
+# (the original button + its dark ring are pasted back, unstretched, by make_art_v2)
+# (MIX / FAV buttons and their recess are kept: make_art_v2 warps them back to round)
 L = rgb.mean(2)
 
 # --- footswitch + blue ring + its glow (the band crosses it)
@@ -219,12 +235,18 @@ L = rgb.mean(2)
 
 
 # --- preset slot: remove "Custom" + chevron (rows of the slot floor are uniform)
-sx0, sy0, sx1, sy1 = 726, 61, 1084, 97
+sx0, sy0, sx1, sy1 = 718, 61, 1088, 97
+floor = rgb.copy()
 for y in range(sy0, sy1):
     row = rgb[y, sx0:sx1]
     lum = row.mean(1)
     med = np.median(row[lum < np.percentile(lum, 50)], 0)
-    rgb[y, sx0:sx1] = med
+    floor[y, sx0:sx1] = med
+# only where the slot floor is: the text / chevron, never the rounded ends (they keep the original bezel)
+qx_ = np.abs(XX - 902.0) - (184.0 - 15.0); qy_ = np.abs(YY - 79.0) - (16.0 - 15.0)
+sd_fl = np.hypot(np.maximum(qx_, 0), np.maximum(qy_, 0)) + np.minimum(np.maximum(qx_, qy_), 0) - 15.0
+fl_m = np.clip(-sd_fl / 1.5, 0, 1).astype(np.float32)[..., None]    # rounded floor of the slot, inside its bezel
+rgb = rgb * (1 - fl_m) + floor * fl_m
 # --- jacks: transparent (photo jacks placed by make_art)
 alpha[:, :537] = 0; alpha[:, 1263:] = 0
 

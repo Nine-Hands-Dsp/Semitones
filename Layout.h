@@ -41,7 +41,7 @@ constexpr float mixX = 201.74f, mixY = 380.63f, mixR = 29.49f;
 constexpr float favX = 415.76f, favY = 380.63f, favR = 29.49f;
 constexpr float footX = 308.75f, footY = 763.80f, footR = 68.32f;
 constexpr float ringX = 308.75f, ringY = 763.80f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
-constexpr float labelY = 347.59f, nameX = 300.82f, nameY = 521.57f;
+constexpr float labelY = 347.59f, nameX = 300.82f, nameY = 539.07f;
 constexpr float jackY = 425.41f, textY = 429.81f, outX = 55.09f, inX = 562.41f;
 constexpr float logoX = 308.75f, logoY = 862.19f, logoW = 195.00f;
 }
