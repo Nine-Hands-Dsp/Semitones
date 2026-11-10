@@ -80,46 +80,64 @@ light = 22.5 + 50.0 * (1 - u) ** 2.3
 light += 6.0 * np.exp(-((PXc - 330) ** 2 / (2 * 420 ** 2) + (PYc - 150) ** 2 / (2 * 520 ** 2)))   # soft sheen
 plate = grain * light[..., None]
 
-# ------------------------------------------------------------------ 2. bands (FF0000)
-bands_photo = np.asarray(Image.open(os.path.join(ROOT, 'design', 'v3src', 'bands_photo.png')).convert('RGB')).astype(np.float32)
-_, _, prot_old, plate_old = RG.masks(H, W)
-oldm = cv2.imread(os.path.join(ROOT, 'design', 'v2src', 'old_groove_mask.png'), 0) > 0
-valid_old = ((plate_old > 0.5) & (prot_old < 0.5) & ~oldm).astype(np.float32)
-for x0, y0, x1, y1 in RG.ARROWS:
-    valid_old[y0:y1, x0:x1] = 0
-tone_old = RG.plate_tone(bands_photo, valid_old)
-strips = {c: RG.strip(bands_photo, tone_old, c) for c in RG.OLD}
+# ------------------------------------------------------------------ 2. bands (FF0000) : zones + heights
+# One height field for the whole band (no per-run photo profile): the bevels, lips and creases come from the same
+# geometry and the same light everywhere, so the mitred corners join exactly (normals turn with the edges).
+#   face    = 00FFFF zones of design/Semitones_Design_Mask_v002.svg (between A and M), 3 px below the faceplate
+#   channel = between M and C, 8 px below the faceplate
+#   chamfers: 2.5 px from the faceplate down to the face, 2 px from the face / faceplate down to the channel
 bands = RG.read_path(os.path.join(ROOT, 'design', 'Semitones_Design_v002.svg'))
-img = RG.draw_profiles(np.power(grain, 0.6) * light[..., None], light, grain, PXc, PYc, bands, strips, base=plate)
+bands_photo = np.asarray(Image.open(os.path.join(ROOT, 'design', 'v3src', 'bands_photo.png')).convert('RGB')).astype(np.float32)   # MIX / FAV caps
+SS = 2
 
-# band faces (00FFFF zones of design/Semitones_Design_Mask_v002.svg): ONE continuous texture over each whole zone,
-# so the runs and the mitred corners have no seam; overall tint of each face kept, lips / bevels at its edges kept
-_ms = open(os.path.join(ROOT, 'design', 'Semitones_Design_Mask_v002.svg')).read()
-SS = 4
-band_tex = np.roll(tex, (611, 977), (0, 1))                     # another part of the same brushed sheet
-band_grain = np.power(band_tex / np.maximum(gblur(band_tex.mean(2), 40)[..., None], 1), 0.6)
-face_zone = np.zeros((H, W), np.float32)
-for pts in re.findall(r'points="([^"]+)"', _ms):
-    v = np.array(list(map(float, pts.split())), float).reshape(-1, 2)
+
+def poly_bin(polys):
     im_ = Image.new('L', (W * SS, H * SS), 0)
-    ImageDraw.Draw(im_).polygon([(x * SS, y * SS) for x, y in v], fill=255)
-    zm = np.asarray(im_.resize((W, H), Image.BOX)).astype(np.float32) / 255.0
-    dist = cv2.distanceTransform((zm > 0.5).astype(np.uint8), cv2.DIST_L2, 5)
-    w = np.clip((dist - 3.0) / 3.0, 0, 1); w = w * w * (3 - 2 * w)          # lips (3 px) kept, 3 px blend
-    core = w > 0.99
-    shade = img.mean(2) / np.maximum(light * np.power(grain, 0.6).mean(2), 1e-3)
-    k_face = float(np.median(shade[core]))                                     # overall tint of the face
-    tint = (img[core] / np.maximum(img[core].mean(1, keepdims=True), 1e-3)).mean(0)
-    face = band_grain * (k_face * light)[..., None] * (tint / tint.mean())[None, None, :]
-    img = img * (1 - w[..., None]) + face * w[..., None]
-    face_zone = np.maximum(face_zone, zm)
-    print('band face', round(k_face, 3), tint.round(3))
+    for v in polys:
+        ImageDraw.Draw(im_).polygon([(x * SS, y * SS) for x, y in v], fill=255)
+    return np.asarray(im_) > 127
+
+
+def inner_dist(binm):
+    """distance (px) from the inside of a zone to its edge, computed at 2x, back to 1x"""
+    d = cv2.distanceTransform(binm.astype(np.uint8), cv2.DIST_L2, 5) / SS
+    return cv2.resize(d, (W, H), interpolation=cv2.INTER_AREA)
+
+
+_ms = open(os.path.join(ROOT, 'design', 'Semitones_Design_Mask_v002.svg')).read()
+face_polys = [np.array(list(map(float, p_.split())), float).reshape(-1, 2) for p_ in re.findall(r'points="([^"]+)"', _ms)]
+chan_polys = [np.vstack([M_, C_[::-1]]) for _, A_, M_, C_, _ in bands]
+YYs, XXs = np.mgrid[0:H * SS, 0:W * SS].astype(np.float32)
+inner_ss = rrect_sd((XXs + 0.5) / SS, (YYs + 0.5) / SS, INNER) < 0          # bands stop at the round bevel
+face_b = [poly_bin([p_]) & inner_ss for p_ in face_polys]
+chan_b = poly_bin(chan_polys) & inner_ss
+groove_b = chan_b.copy()
+for fb in face_b:
+    groove_b |= fb
+dG, dK = inner_dist(groove_b), inner_dist(chan_b)
+sm = lambda x: x * x * (3 - 2 * x)
+h_band = -3.0 * sm(np.clip(dG / 2.2, 0, 1)) - 5.0 * sm(np.clip(dK / 2.2, 0, 1))
+del YYs, XXs
+
+# albedo: faceplate grain; faces = ONE continuous texture each (another part of the same sheet), overall tint of
+# the former faces kept; channel floor a little darker
+band_tex = np.roll(tex, (611, 977), (0, 1))
+band_grain = np.power(band_tex / np.maximum(gblur(band_tex.mean(2), 40)[..., None], 1), 0.6)
+img = plate.copy()
+K_FACE = [1.60, 2.09]                                     # face / faceplate brightness of the validated faces
+TINT = np.array([0.992, 0.992, 1.015])
+for fb, kf in zip(face_b, K_FACE):
+    fm = cv2.resize(fb.astype(np.float32), (W, H), interpolation=cv2.INTER_AREA)[..., None]
+    img = img * (1 - fm) + band_grain * (kf * light)[..., None] * TINT * fm
+cm = cv2.resize(chan_b.astype(np.float32), (W, H), interpolation=cv2.INTER_AREA)[..., None]
+img = img * (1 - cm) + plate * 0.72 * cm
 
 # ------------------------------------------------------------------ 3. relief: rim, holes (height field, one light)
 d_out = -rrect_sd(PXc, PYc, OUTER)                         # > 0 inside the enclosure
 RIM = 17.0
 t = np.clip(d_out / RIM, 0, 1)
 h = -RIM + RIM * np.sqrt(np.clip(1 - (1 - t) ** 2, 0, 1))    # quarter round, 0 on the faceplate
+h += h_band
 DEPTH = 4.0
 holes = {}
 def chamfer_hole(sd_o, width, depth, floor):
@@ -148,17 +166,18 @@ for k_ in np.arange(1.0, 24.0, 1.0):
 shadow = gblur(shadow, 1.0)
 ao = 1 - 0.5 * np.clip(-(hs - gblur(hs, 6.0)) / 3.0, 0, 1)
 relief = (A_ + D_ * ndl) / (A_ + D_ * nl0) * (1 - 0.75 * shadow) * ao
-spec = 230.0 * (ndh ** 18 - nh0 ** 18).clip(0, None)
+spec = 330.0 * (ndh ** 24 - nh0 ** 24).clip(0, None)
 # convex edges (plate -> chamfer lips, plate -> rim) catch a thin line of light, brightest where they face the light
 lap = cv2.Laplacian(gblur(h.astype(np.float32), 0.7), cv2.CV_32F)
 gmag = np.hypot(gx, gy) + 1e-6
 facing = np.clip(((-gx / gmag) * Lv[0] + (-gy / gmag) * Lv[1]) / np.hypot(Lv[0], Lv[1]), -1, 1)
-edge_hl = np.clip(-lap / 0.6, 0, 1) * (0.25 + 0.75 * np.clip(facing, 0, 1))
-spec += 70.0 * gblur(edge_hl, 0.4)
+edge_hl = np.clip(-lap / 0.5, 0, 1) * (0.3 + 0.7 * np.clip(facing + 0.35, 0, 1))   # area light: a lip a little off the light still glints
+spec += 150.0 * gblur(edge_hl, 0.4)
 inside_body = cov(rrect_sd(PXc, PYc, OUTER))
-in_relief = (h < -0.05) | (gblur((h < -0.05).astype(np.float32), 1.0) > 0.01)
-base = np.where(in_relief[..., None], plate, img)                 # chamfers / rim cut the plain metal, not the bands
-img = np.where(in_relief[..., None], base * relief[..., None] + spec[..., None] * np.array([0.97, 0.99, 1.02]), img)
+# chamfers of the holes and the round bevel cut the plain metal (not the band faces)
+cut = np.clip((-(h - h_band) - 0.05) * 4, 0, 1)[..., None]
+alb = img * (1 - cut) + plate * cut
+img = alb * relief[..., None] + spec[..., None] * np.array([0.97, 0.99, 1.02])
 # rim: outer edge falls off into the dark
 img *= (0.35 + 0.65 * np.clip(d_out / 6.0, 0, 1))[..., None]
 
