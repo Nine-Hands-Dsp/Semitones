@@ -145,13 +145,13 @@ img = img * (1 - inner[..., None]) + glass * inner[..., None]
 # segments (centre lines in units); digit boxes from the source "+84" (horizontal gaps follow the width)
 SEG_T, SEG_GAP = 10.5, 1.3
 DCY = P(0, 352.0)[1]
-DH = 54.0
+DH = 72.0
 YT, YM, YB = DCY - DH / 2, DCY, DCY + DH / 2
 DIG_W = 48.0
 SIGN_C = (P(820.0, 0)[0], DCY)
 TENS_C = P(911.0, 0)[0]
 UNITS_C = P(982.0, 0)[0]
-SIGN_H, SIGN_V = 24.0, 23.0
+SIGN_H, SIGN_V = 24.0, 31.0
 
 
 def hseg(x1, x2, y, t=SEG_T, g=SEG_GAP):
@@ -231,10 +231,10 @@ for n, _ in layers:
     lit_sprite(seg_masks[n], 'seg_' + n)
 MIX_DOT = (MIX[0], gy_ + gh_ - 18.0, 4.6)
 lit_sprite(np.clip((MIX_DOT[2] - np.hypot(UX - MIX_DOT[0], UY - MIX_DOT[1])) * AS, 0, 1), 'seg_mix')
-STATUS = (CX - 92.0, gy_ + gh_ - 31.0, 184.0, 26.0)
+STATUS = (CX - 115.0, gy_ + gh_ - 36.0, 230.0, 30.0)
 
 # ------------------------------------------------------------------ 3. footswitch (photo) + jacks (photo)
-FS = (CX, P(0, 943.5)[1])
+FS = (CX, P(0, 943.5)[1] + 15.0)              # lowered 30 px (user, 10 nov.)
 FS_FLATS = 122.0
 FSPR, FSREFL, FS_SZ, FS_BTN = PC.footswitch_sprite(FS_FLATS, AS, refl_colour=(60.0, 160.0, 255.0))
 n = FSPR.shape[0]

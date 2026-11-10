@@ -8,39 +8,39 @@ constexpr int defaultH = 493, defaultW = 338;   // "60 %"
 constexpr Sprite sprites[] = {
     { "seg_s_l", { 190.50f, 185.50f, 66.00f, 60.50f } },
     { "seg_s_r", { 206.50f, 185.50f, 66.00f, 60.50f } },
-    { "seg_s_u", { 201.50f, 175.50f, 59.50f, 65.50f } },
-    { "seg_s_d", { 201.50f, 190.50f, 59.50f, 65.50f } },
-    { "seg_t_a", { 278.00f, 155.50f, 83.00f, 66.50f } },
-    { "seg_t_b", { 315.00f, 172.00f, 57.00f, 60.50f } },
-    { "seg_t_c", { 315.00f, 199.00f, 57.00f, 60.50f } },
-    { "seg_t_d", { 278.00f, 209.50f, 83.00f, 66.50f } },
-    { "seg_t_e", { 267.00f, 199.00f, 57.00f, 60.50f } },
-    { "seg_t_f", { 267.00f, 172.00f, 57.00f, 60.50f } },
+    { "seg_s_u", { 199.50f, 167.50f, 63.50f, 73.50f } },
+    { "seg_s_d", { 199.50f, 190.50f, 63.50f, 73.50f } },
+    { "seg_t_a", { 278.00f, 146.50f, 83.00f, 66.50f } },
+    { "seg_t_b", { 312.00f, 162.50f, 62.50f, 70.50f } },
+    { "seg_t_c", { 312.00f, 198.50f, 62.50f, 70.50f } },
+    { "seg_t_d", { 278.00f, 218.50f, 83.00f, 66.50f } },
+    { "seg_t_e", { 264.00f, 198.50f, 62.50f, 70.50f } },
+    { "seg_t_f", { 264.00f, 162.50f, 62.50f, 70.50f } },
     { "seg_t_g", { 278.00f, 182.50f, 83.00f, 66.50f } },
-    { "seg_u_a", { 346.50f, 155.50f, 83.00f, 66.50f } },
-    { "seg_u_b", { 383.50f, 172.00f, 57.00f, 60.50f } },
-    { "seg_u_c", { 383.50f, 199.00f, 57.00f, 60.50f } },
-    { "seg_u_d", { 346.50f, 209.50f, 83.00f, 66.50f } },
-    { "seg_u_e", { 335.50f, 199.00f, 57.00f, 60.50f } },
-    { "seg_u_f", { 335.50f, 172.00f, 57.00f, 60.50f } },
+    { "seg_u_a", { 346.50f, 146.50f, 83.00f, 66.50f } },
+    { "seg_u_b", { 381.00f, 162.50f, 62.00f, 70.50f } },
+    { "seg_u_c", { 381.00f, 198.50f, 62.00f, 70.50f } },
+    { "seg_u_d", { 346.50f, 218.50f, 83.00f, 66.50f } },
+    { "seg_u_e", { 333.00f, 198.50f, 62.00f, 70.50f } },
+    { "seg_u_f", { 333.00f, 162.50f, 62.00f, 70.50f } },
     { "seg_u_g", { 346.50f, 182.50f, 83.00f, 66.50f } },
     { "seg_mix", { 182.50f, 295.00f, 40.50f, 37.00f } },
     { "press_left", { 64.00f, 175.50f, 80.00f, 80.00f } },
     { "press_right", { 474.00f, 175.50f, 80.00f, 80.00f } },
     { "press_mix", { 168.50f, 349.00f, 67.00f, 67.00f } },
     { "press_fav", { 381.00f, 349.00f, 67.00f, 67.00f } },
-    { "press_foot", { 233.00f, 662.00f, 151.00f, 151.00f } }
+    { "press_foot", { 233.00f, 677.00f, 151.00f, 151.00f } }
 };
 constexpr R hitLeft { 70.02f, 175.74f, 68.00f, 80.00f };
 constexpr R hitRight { 480.45f, 175.74f, 68.00f, 80.00f };
 constexpr R hitDisplay { 159.06f, 104.56f, 300.34f, 228.53f };
-constexpr R statusBox { 216.75f, 302.09f, 184.00f, 26.00f };
+constexpr R statusBox { 193.75f, 297.09f, 230.00f, 30.00f };
 constexpr R presetBox { 171.62f, 37.50f, 285.85f, 31.76f };
 constexpr R box { 20.00f, 0.00f, 577.50f, 900.00f };
 constexpr float mixX = 202.52f, mixY = 382.94f, mixR = 31.59f;
 constexpr float favX = 414.98f, favY = 382.94f, favR = 31.59f;
-constexpr float footX = 308.75f, footY = 737.65f, footR = 68.32f;
-constexpr float ringX = 308.75f, ringY = 737.65f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
+constexpr float footX = 308.75f, footY = 752.65f, footR = 68.32f;
+constexpr float ringX = 308.75f, ringY = 752.65f, ringR = 48.71f, ringW = 3.08f, ringK = 1.47f;
 constexpr float labelY = 346.32f, nameX = 299.09f, nameY = 522.79f;
 constexpr float jackY = 425.74f, textY = 434.56f, outX = 54.77f, inX = 562.73f;
 constexpr float logoX = 308.75f, logoY = 868.68f, logoW = 168.00f;
