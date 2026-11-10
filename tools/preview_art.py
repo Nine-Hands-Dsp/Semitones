@@ -87,21 +87,20 @@ def engraved(xy, t, f, depth=1.0, anchor='mm', base=(28, 30, 33), rot=0):
 
 # preset menu text (in its milled slot)
 px, py, pw, ph = lay['preset']
-text_c((px + pw / 2, py + ph / 2 + 0.5), 'Capo  +2', font('Poppins-Medium.ttf', 14.5), (225, 230, 236))
-d.polygon([((px + pw - 20) * AS, (py + ph / 2 - 2.5) * AS), ((px + pw - 12) * AS, (py + ph / 2 - 2.5) * AS),
-           ((px + pw - 16) * AS, (py + ph / 2 + 2.5) * AS)], fill=(160, 168, 178))
+text_c((px + pw / 2, py + ph / 2 + 0.5), 'Custom', font('Poppins-Medium.ttf', 14.5), (225, 230, 236))
+d.line([((px + pw - 22) * AS, (py + ph / 2 - 2.5) * AS), ((px + pw - 17) * AS, (py + ph / 2 + 2.5) * AS),
+        ((px + pw - 12) * AS, (py + ph / 2 - 2.5) * AS)], fill=(225, 230, 236), width=int(2.2 * AS), joint='curve')
 # status line inside the display
 sx, sy, sw, sh = lay['status']
 text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY OFF   ·   ') + ('%+d ST' % st),
        font('Poppins-Medium.ttf', 11.5), (70, 165, 240))
 # MIX / FAV labels, name, subtitle, IN / OUT
-lf = font('Poppins-Medium.ttf', 14)
+lf = font('Poppins-Medium.ttf', 15)
 engraved((lay['mix'][0], lay['labelY']), 'MIX', lf, 0.6)
 engraved((lay['fav'][0], lay['labelY']), 'FAV', lf, 0.6)
-engraved(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 46), 1.0)
-engraved((lay['name'][0], lay['subY']), 'POLYPHONIC  PITCH  SHIFTER', font('Poppins-Medium.ttf', 9.5), 0.5)
-engraved((lay['outX'], lay['jackY']), 'OUT', font('Poppins-Medium.ttf', 11), 0.5, rot=90)
-engraved((lay['inX'], lay['jackY']), 'IN', font('Poppins-Medium.ttf', 11), 0.5, rot=-90)
+engraved(tuple(lay['name']), 'Semitones', font('Poppins-Bold.ttf', 36), 1.0)
+engraved((lay['outX'], lay['textY']), 'OUT', font('Poppins-Medium.ttf', 15), 0.6, rot=-90)
+engraved((lay['inX'], lay['textY']), 'IN', font('Poppins-Medium.ttf', 15), 0.6, rot=90)
 # logo (black, vector)
 lx, ly, lw = lay['logo']
 tmp = '/tmp/claude-0/logo_prev.png'
