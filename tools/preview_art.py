@@ -122,7 +122,7 @@ def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (u
     w_right = np.clip(ox, 0, 1) ** 1.5 * np.clip((tdown - 0.5) / 0.25, 0, 1)   # lower half of the right side
     hl = np.clip(w_bottom + w_right, 0, 1) * rim
     hl = blur(hl, 0.35 * AS) * 1.6
-    rgb += (np.clip(hl, 0, 1) * 38)[..., None]                                # subtle (user, 10 nov.)
+    rgb += (np.clip(hl, 0, 1) * float(os.environ.get("EDGE_HL", 38)))[..., None]                                # subtle (user, 10 nov.)
     canvas.paste(Image.fromarray(np.clip(np.dstack([rgb, al]), 0, 255).astype(np.uint8), 'RGBA'), (0, 0))
 
 
