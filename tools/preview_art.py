@@ -147,7 +147,11 @@ text_c((sx + sw / 2 + 12, sy + sh / 2), ('MIX 100 %   ·   ' if mix_on else 'DRY
 lf = font('Poppins-Medium.ttf', 15)
 deboss_mask(text_mask((lay['mix'][0], lay['labelY']), 'MIX', lf), depth=0.6)
 deboss_mask(text_mask((lay['fav'][0], lay['labelY']), 'FAV', lf), depth=0.6)
-deboss_mask(text_mask(tuple(lay['name']), 'Semitones', font('Poppins-Medium.ttf', 38)), depth=1.0)
+# "Semitones" logo: user's vector paths (design/Semitones_Logo.svg, drawn in the 1235 x 1800 frame of background.png)
+tmpn = '/tmp/claude-0/name_prev.png'
+svg_raster.raster(os.path.join(ROOT, 'design', 'Semitones_Logo.svg'), W, tmpn)
+nm = Image.open(tmpn).convert('RGBA').split()[3].resize((W, H), Image.LANCZOS)
+deboss_mask(nm, depth=1.0)
 deboss_mask(text_mask((lay['outX'], lay['textY']), 'OUT', font('Poppins-Bold.ttf', 20), rot=-90), depth=0.8)
 deboss_mask(text_mask((lay['inX'], lay['textY']), 'IN', font('Poppins-Bold.ttf', 20), rot=90), depth=0.8)
 # logo (white on the black pedal, vector)
