@@ -48,7 +48,7 @@ def octo_ring(lvl=1.0, col=(40, 168, 255)):
         canvas.paste(Image.new('RGBA', (W, H), rgb + (255,)), (0, 0), m)
     hw = 13.0
     while hw > 3.0:
-        stroke(hw * K, col, 0.045); hw -= 1.5
+        stroke(hw * K, col, 0.045 * 1.15); hw -= 1.5          # glow +15 % (user, 10 nov.)
     stroke(Wd, col, 0.85)
     core = tuple(int(c + (255 - c) * 0.55) for c in col)
     stroke(Wd * 0.42, core, 0.9)
