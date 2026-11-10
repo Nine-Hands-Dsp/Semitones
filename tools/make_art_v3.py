@@ -92,6 +92,29 @@ strips = {c: RG.strip(bands_photo, tone_old, c) for c in RG.OLD}
 bands = RG.read_path(os.path.join(ROOT, 'design', 'Semitones_Design_v002.svg'))
 img = RG.draw_profiles(np.power(grain, 0.6) * light[..., None], light, grain, PXc, PYc, bands, strips, base=plate)
 
+# band faces (00FFFF zones of design/Semitones_Design_Mask_v002.svg): ONE continuous texture over each whole zone,
+# so the runs and the mitred corners have no seam; overall tint of each face kept, lips / bevels at its edges kept
+_ms = open(os.path.join(ROOT, 'design', 'Semitones_Design_Mask_v002.svg')).read()
+SS = 4
+band_tex = np.roll(tex, (611, 977), (0, 1))                     # another part of the same brushed sheet
+band_grain = np.power(band_tex / np.maximum(gblur(band_tex.mean(2), 40)[..., None], 1), 0.6)
+face_zone = np.zeros((H, W), np.float32)
+for pts in re.findall(r'points="([^"]+)"', _ms):
+    v = np.array(list(map(float, pts.split())), float).reshape(-1, 2)
+    im_ = Image.new('L', (W * SS, H * SS), 0)
+    ImageDraw.Draw(im_).polygon([(x * SS, y * SS) for x, y in v], fill=255)
+    zm = np.asarray(im_.resize((W, H), Image.BOX)).astype(np.float32) / 255.0
+    dist = cv2.distanceTransform((zm > 0.5).astype(np.uint8), cv2.DIST_L2, 5)
+    w = np.clip((dist - 3.0) / 3.0, 0, 1); w = w * w * (3 - 2 * w)          # lips (3 px) kept, 3 px blend
+    core = w > 0.99
+    shade = img.mean(2) / np.maximum(light * np.power(grain, 0.6).mean(2), 1e-3)
+    k_face = float(np.median(shade[core]))                                     # overall tint of the face
+    tint = (img[core] / np.maximum(img[core].mean(1, keepdims=True), 1e-3)).mean(0)
+    face = band_grain * (k_face * light)[..., None] * (tint / tint.mean())[None, None, :]
+    img = img * (1 - w[..., None]) + face * w[..., None]
+    face_zone = np.maximum(face_zone, zm)
+    print('band face', round(k_face, 3), tint.round(3))
+
 # ------------------------------------------------------------------ 3. relief: rim, holes (height field, one light)
 d_out = -rrect_sd(PXc, PYc, OUTER)                         # > 0 inside the enclosure
 RIM = 17.0
