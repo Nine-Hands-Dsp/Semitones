@@ -80,12 +80,18 @@ jobs:
           pack dist/win "Semitones-VST3-Windows.zip" ""
           pack dist/mac "Semitones-VST3-macOS.zip" ""
           ls -l *.zip
+      - name: Notice
+        run: |
+          # derniere notice du dossier docs/ (hors guide MIDI), publiee sous un nom fixe
+          N=$(ls docs/*.pdf 2>/dev/null | grep -vi midi | sort -V | tail -1 || true)
+          if [ -n "$N" ]; then cp "$N" Semitones-Notice.pdf; echo "notice : $N"; else echo "pas de notice"; fi
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.v.outputs.version }}"
           FILES="Semitones-VST3-Windows.zip Semitones-VST3-macOS.zip"
+          [ -f Semitones-Notice.pdf ] && FILES="$FILES Semitones-Notice.pdf"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
           else
