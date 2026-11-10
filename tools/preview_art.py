@@ -85,7 +85,7 @@ def engraved(xy, t, f, depth=1.0, anchor='mm', base=(196, 199, 204), rot=0):
     canvas.paste(Image.new('RGBA', (W, H), (5, 6, 8, 255)), (0, 0), lo.point(lambda p: p * 0.75))
 
 
-def deboss_mask(m, fill=(178, 181, 186), depth=1.0):
+def deboss_mask(m, fill=(142, 145, 149), depth=1.0):            # floor -20 % (user, 10 nov.)
     """light, natural deboss: lettering pressed into the metal, lit from the top left (walls at the top left in
     shadow, lip at the bottom right catching the light, soft inner shadow on the floor), no shadow outside"""
     import numpy as np
