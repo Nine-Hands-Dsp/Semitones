@@ -269,6 +269,7 @@ void SemitonesProcessor::applyContinuous (MidiTarget t, float raw, int)
 
 void SemitonesProcessor::handleMidi (const juce::MidiMessage& m, int samplePos)
 {
+    if (m.isProgramChange()) { pendingProgram.store (m.getProgramChangeNumber()); return; }   // Program Change = presets d'usine
     if (! m.isController()) return;
     const int cc = m.getControllerNumber();
     const int v = m.getControllerValue();
@@ -331,6 +332,10 @@ void SemitonesProcessor::handleMidi (const juce::MidiMessage& m, int samplePos)
 // message thread
 void SemitonesProcessor::timerCallback()
 {
+    {
+        const int pc = pendingProgram.exchange (-1);
+        if (pc >= 0) applyPreset (pc);
+    }
     const int pp = pendingPreset.exchange (-1);
     if (pp >= 0) applyPreset (pp);
     if (pendingFavExit.exchange (false) && pFav->load() > 0.5f)
@@ -464,6 +469,7 @@ void SemitonesProcessor::getStateInformation (juce::MemoryBlock& dest)
     extra.setProperty ("favMix", favMix.load(), nullptr);
     extra.setProperty ("preset", currentPreset, nullptr);
     extra.setProperty ("glow", glowPct.load(), nullptr);
+    extra.setProperty ("uiSize", uiSizeIdx.load(), nullptr);
     for (int i = 0; i < (int) MidiTarget::count; ++i)
     {
         extra.setProperty ("cc" + juce::String (i), midiCC[(size_t) i].load(), nullptr);
@@ -491,6 +497,7 @@ void SemitonesProcessor::setStateInformation (const void* data, int size)
         favMix.store ((float) extra.getProperty ("favMix", 50.0f));
         currentPreset = (int) extra.getProperty ("preset", 0);
         glowPct.store (juce::jlimit (25, 100, (int) extra.getProperty ("glow", 100)));
+        uiSizeIdx.store (juce::jlimit (-1, 2, (int) extra.getProperty ("uiSize", -1)));
         for (int i = 0; i < (int) MidiTarget::count; ++i)
         {
             midiCC[(size_t) i].store ((int) extra.getProperty ("cc" + juce::String (i), -1));

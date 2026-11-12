@@ -268,19 +268,19 @@ SemitonesEditor::SemitonesEditor (SemitonesProcessor& p)
     addAndMakeVisible (presetBox);
     syncPresetBox();
 
-    setResizable (true, false);                 // the host resizes the window (no corner grip on the pedal)
+    setResizable (true, true);                  // coin de redimensionnement, proportions fixes, jusqu'a 150 %
     // default size = minimum size (simple pedal format, like Echoflex / Holyverb)
     const int defW = Layout::defaultW;   // 338 x 493 (pedal 1235 x 1800)
     const int defH = Layout::defaultH;
-    setResizeLimits (defW, defH, defW * 2, defH * 2);
+    const float maxF = 1437.0f / 493.0f;
+    setResizeLimits (defW, defH, juce::roundToInt (defW * maxF), juce::roundToInt (defH * maxF));
+    hostLock.setLimits (defW, defH, juce::roundToInt (defW * maxF), juce::roundToInt (defH * maxF));
     if (auto* c = getConstrainer())
         c->setFixedAspectRatio ((double) defW / (double) defH);
     setSize (defW, defH);
-    // taille des nouvelles fenêtres : celle choisie dans le menu « Default size (new windows) »
-    {
-        const float f = kSizeFactors[WigaWindowSize::defaultIndex (JucePlugin_Name, kNumSizes)];
-        setSize (juce::roundToInt (defW * f), juce::roundToInt (defH * f));
-    }
+    proc.glowPct.store (NineHandsGlow::percent (JucePlugin_Name));     // Glow intensity : commun a toutes les fenetres
+    // taille choisie au menu pour ce projet, sinon celle de « Default size (new windows) »
+    setWindowFactor (kSizeFactors[NineHandsWindow::openIndex (JucePlugin_Name, proc.uiSizeIdx.load(), kNumSizes)]);
 
     const auto e = proc.getEffective();
     if (e.on) led[0] = 1.0f;
@@ -548,7 +548,13 @@ void SemitonesEditor::useSoftwareRenderer()
    #endif
 }
 
-void SemitonesEditor::parentHierarchyChanged() { useSoftwareRenderer(); }
+void SemitonesEditor::parentHierarchyChanged() { useSoftwareRenderer(); hostLock.track (*this); }
+
+void SemitonesEditor::setWindowFactor (float f)
+{
+    setSize (juce::roundToInt (Layout::defaultW * f), juce::roundToInt (Layout::defaultH * f));
+    hostLock.enforce();
+}
 
 void SemitonesEditor::visibilityChanged()
 {
@@ -593,6 +599,12 @@ void SemitonesEditor::timerCallback()
 {
     const double t = nowMs();
     blinkPhase = t / 250.0;          // 4 Hz flashing
+    hostLock.track (*this);
+    if (t - lastGlowReadMs > 3000.0)  // Glow intensity : commun a toutes les fenetres (jamais dans paint)
+    {
+        lastGlowReadMs = t;
+        proc.glowPct.store (NineHandsGlow::percent (JucePlugin_Name));
+    }
 
     // anti-freeze: renderer + watchdog
     if (getPeer() != lastPeer || t - lastRendererCheck > 1000.0)
@@ -788,150 +800,98 @@ void SemitonesEditor::mouseWheelMove (const juce::MouseEvent& ev, const juce::Mo
     }
 }
 
-void SemitonesEditor::showMenu (Hit h)
+juce::PopupMenu SemitonesEditor::buildContextMenu (int learnIdx)
+{
+    return buildMenu (learnIdx == (int) MidiTarget::footswitch ? Hit::foot : Hit::none);
+}
+
+juce::PopupMenu SemitonesEditor::buildMenu (Hit h)
 {
     juce::PopupMenu m;
     m.setLookAndFeel (&menuLnf);
-    std::vector<MidiTarget> targets;
-    switch (h)
-    {
-        case Hit::foot:    targets = { MidiTarget::footswitch }; break;
-        case Hit::left:    targets = { MidiTarget::down }; break;
-        case Hit::right:   targets = { MidiTarget::up }; break;
-        case Hit::mix:     targets = { MidiTarget::mixOn, MidiTarget::mix }; break;
-        case Hit::fav:     targets = { MidiTarget::fav }; break;
-        case Hit::display: targets = { MidiTarget::semitones, MidiTarget::up, MidiTarget::down }; break;
-        default: break;
-    }
-    // header (Octopus): the pedal, or the control with its MIDI assignment
-    {
-        juce::String title ("Semitones"), sub (juce::String ("Pitch shifter  v") + JucePlugin_VersionString);
-        int ico = NineHandsMenu::icoPedal;
-        if (! targets.empty())
-        {
-            const auto t0 = targets.front();
-            const int cc = proc.midiCC[(size_t) t0].load();
-            title = h == Hit::foot ? juce::String ("Footswitch") : h == Hit::mix ? juce::String ("MIX")
-                  : h == Hit::fav ? juce::String ("FAV") : h == Hit::left ? juce::String ("Left arrow")
-                  : h == Hit::right ? juce::String ("Right arrow") : juce::String ("Display");
-            sub = cc >= 0 ? "MIDI: CC " + juce::String (cc) : juce::String ("MIDI: not assigned");
-            ico = h == Hit::display ? NineHandsMenu::icoKnob : NineHandsMenu::icoSwitch;
-        }
-        NineHandsMenu::addHeader (m, menuLnf.f, ico, kAccent, title, sub);
-    }
-    int id = 1;
-    struct Act { int kind; MidiTarget t; float size; };
-    std::map<int, Act> acts;
+    const int lt = proc.learnTarget.load();
     auto ccText = [this] (MidiTarget t)
     {
         const int cc = proc.midiCC[(size_t) t].load();
-        return cc >= 0 ? "CC " + juce::String (cc) : juce::String ("none");
+        return cc >= 0 ? "CC " + juce::String (cc) : juce::String ("not assigned");
     };
-    for (auto t : targets)
+    MidiTarget target = MidiTarget::count;
+    switch (h)
     {
-        const auto name = SemitonesProcessor::targetName (t);
-        m.addSectionHeader ("MIDI  -  " + name);
-        const int cc = proc.midiCC[(size_t) t].load();
-        acts[id] = { 0, t, 0 };
-        m.addItem (id++, "MIDI Learn: " + name + " (" + ccText (t) + ")", true,
-                   proc.learnTarget.load() == (int) t);
-        if (SemitonesProcessor::isToggle (t))
-        {
-            const bool mom = proc.momentary[(size_t) t].load();
-            acts[id] = { 1, t, 0 };
-            m.addItem (id++, "Latching switch (CC >= 64 = on)", true, ! mom);
-            acts[id] = { 2, t, 0 };
-            m.addItem (id++, "Momentary switch (each press toggles)", true, mom);
-        }
-        if (SemitonesProcessor::isContinuous (t))
-        {
-            acts[id] = { 4, t, 0 };
-            m.addItem (id++, "Reset expression pedal travel", cc >= 0);
-        }
-        acts[id] = { 3, t, 0 };
-        m.addItem (id++, "Clear MIDI: " + name, cc >= 0);
+        case Hit::foot:    target = MidiTarget::footswitch; break;
+        case Hit::left:    target = MidiTarget::down; break;
+        case Hit::right:   target = MidiTarget::up; break;
+        case Hit::mix:     target = MidiTarget::mix; break;
+        case Hit::fav:     target = MidiTarget::fav; break;
+        case Hit::display: target = MidiTarget::semitones; break;
+        default: break;
     }
-    if (proc.learnTarget.load() >= 0)
+    if (target != MidiTarget::count)
     {
-        m.addSeparator();
-        acts[id] = { 5, MidiTarget::count, 0 };
-        m.addItem (id++, "Cancel MIDI learn");
-    }
-    // right click outside the controls: MIDI sub-menu with every control
-    if (targets.empty())
-    {
-        juce::PopupMenu midi;
-        for (int i = 0; i < (int) MidiTarget::count; ++i)
-        {
-            const auto t = (MidiTarget) i;
-            acts[id] = { 0, t, 0 };
-            midi.addItem (id++, "Learn: " + SemitonesProcessor::targetName (t) + " (" + ccText (t) + ")", true,
-                          proc.learnTarget.load() == i);
-        }
-        midi.addSeparator();
-        acts[id] = { 7, MidiTarget::count, 0 };
-        midi.addItem (id++, "Reset MIDI to defaults (nothing assigned)");
-        m.addSubMenu ("MIDI", midi);
-    }
-    {
-        // Plugin size : taille de cette fenêtre + taille par défaut des nouvelles fenêtres (comme Octopus)
-        // même liste que les autres pédales : 60 % (taille par défaut d'origine), 75 %, 100 %
-        const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, kNumSizes);
-        juce::PopupMenu sizes, defSizes, glow;
-        for (int k = 0; k < kNumSizes; ++k)
-        {
-            const float sz = kSizeFactors[k];
-            const int w = juce::roundToInt (Layout::defaultW * sz);
-            const bool cur = std::abs (getWidth() - w) < 2;
-            acts[id] = { 6, MidiTarget::count, sz };
-            sizes.addItem (id++, juce::String (kSizeLabels[k]) + (k == def ? "  (default)" : ""), true, cur);
-            acts[id] = { 8, MidiTarget::count, (float) k };
-            defSizes.addItem (id++, kSizeLabels[k], true, k == def);
-        }
-        sizes.addSeparator();
-        sizes.addSubMenu ("Default size (new windows)", defSizes);
-        m.addSeparator();
-        m.addSubMenu ("Plugin size", sizes);
-        // Glow: intensity of the light halos (footswitch ring)
-        for (int pct : { 25, 50, 75, 100 })
-        {
-            acts[id] = { 9, MidiTarget::count, (float) pct };
-            glow.addItem (id++, "Glow " + juce::String (pct) + " %", true, proc.glowPct.load() == pct);
-        }
-        m.addSubMenu ("Glow", glow);
+        // menu d'une commande (tronc commun) : en-tete, MIDI Learn, Clear MIDI, Cancel MIDI learn
+        const auto name = SemitonesProcessor::targetName (target);
+        NineHandsMenu::addHeader (m, menuLnf.f, h == Hit::display || h == Hit::mix ? NineHandsMenu::icoKnob : NineHandsMenu::icoSwitch,
+                                  kAccent, name, "MIDI: " + ccText (target));
+        m.addItem (1000 + (int) target, "MIDI Learn: " + name, true, lt == (int) target);
+        m.addItem (1100 + (int) target, "Clear MIDI: " + name, proc.midiCC[(size_t) target].load() >= 0);
+        m.addItem (1200, "Cancel MIDI learn", lt >= 0);
+        return m;
     }
 
+    NineHandsMenu::addHeader (m, menuLnf.f, NineHandsMenu::icoPedal, kAccent, "Semitones", juce::String ("Pitch shifter  v") + JucePlugin_VersionString);
+    juce::PopupMenu factory;
+    const auto& list = SemitonesProcessor::factoryPresets();
+    for (int i = 0; i < (int) list.size(); ++i)
+        factory.addItem (100 + i, juce::String (i + 1) + ". " + list[(size_t) i].name, true, proc.currentPreset == i);
+    m.addSubMenu ("Factory presets", factory);
+    m.addSeparator();
+
+    juce::PopupMenu midi;
+    midi.addSectionHeader ("MIDI Learn");
+    for (int i = 0; i < (int) MidiTarget::count; ++i)
+        midi.addItem (1000 + i, "Learn: " + SemitonesProcessor::targetName ((MidiTarget) i) + "  (" + ccText ((MidiTarget) i) + ")", true, lt == i);
+    midi.addSeparator();
+    midi.addItem (1200, "Cancel MIDI learn", lt >= 0);
+    midi.addItem (1201, "Clear all MIDI assignments");
+    midi.addSeparator();
+    NineHandsWindow::addMidiFootswitchMode (midi, ! proc.momentary[(size_t) MidiTarget::footswitch].load());
+    midi.addSeparator();
+    NineHandsWindow::addProgramChangeInfo (midi);
+    m.addSubMenu ("MIDI", midi);
+    m.addSeparator();
+
+    int heights[kNumSizes];
+    for (int k = 0; k < kNumSizes; ++k) heights[k] = juce::roundToInt (Layout::defaultH * kSizeFactors[k]);
+    m.addSubMenu ("Plugin size", NineHandsWindow::sizeMenu (JucePlugin_Name, kNumSizes, kSizeLabels, heights, getHeight()));
+    m.addSubMenu ("Glow intensity", NineHandsWindow::glowMenu (proc.glowPct.load()));
+    return m;
+}
+
+void SemitonesEditor::showMenu (Hit h)
+{
+    auto m = buildMenu (h);
     juce::Component::SafePointer<SemitonesEditor> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withMousePosition(),          // opens where the user clicks
-        [safe, acts] (int r)
+        [safe] (int r)
         {
-            if (safe == nullptr || r <= 0) return;
-            auto it = acts.find (r);
-            if (it == acts.end()) return;
+            if (safe == nullptr || r <= 0 || r == 9001) return;
             auto& pr = safe->proc;
-            const auto a = it->second;
-            const size_t ti = (size_t) a.t;
-            switch (a.kind)
+            int inst = pr.uiSizeIdx.load();
+            const int sz = NineHandsWindow::handleSize (r, JucePlugin_Name, kNumSizes, inst);
+            if (sz >= 0) { pr.uiSizeIdx = inst; safe->setWindowFactor (kSizeFactors[sz]); return; }
+            if (const int pc = NineHandsWindow::handleGlow (r, JucePlugin_Name)) { pr.glowPct.store (pc); safe->repaint(); return; }
+            const int n = (int) MidiTarget::count;
+            if (r == NineHandsWindow::idLatch || r == NineHandsWindow::idMomentary)
+                pr.momentary[(size_t) MidiTarget::footswitch].store (r == NineHandsWindow::idMomentary);
+            else if (r >= 100 && r < 100 + (int) SemitonesProcessor::factoryPresets().size())
             {
-                case 0: pr.learnTarget.store (pr.learnTarget.load() == (int) a.t ? -1 : (int) a.t); break;   // clicking again cancels
-                case 1: pr.momentary[ti].store (false); break;
-                case 2: pr.momentary[ti].store (true); break;
-                case 3: pr.clearMidi (a.t); break;
-                case 4: pr.courseMin[ti].store (1.0f); pr.courseMax[ti].store (0.0f); break;
-                case 5: pr.learnTarget.store (-1); break;
-                case 7: pr.resetMidiMap(); break;
-                case 6: safe->setSize (juce::roundToInt (Layout::defaultW * a.size), juce::roundToInt (Layout::defaultH * a.size)); break;
-                case 9: pr.glowPct.store ((int) a.size); break;
-                case 8:
-                {
-                    const int k = juce::jlimit (0, kNumSizes - 1, (int) a.size);
-                    WigaWindowSize::setDefaultIndex (JucePlugin_Name, k);   // toutes les nouvelles fenêtres de ce plugin
-                    const float sz = kSizeFactors[k];                       // et cette fenêtre tout de suite
-                    safe->setSize (juce::roundToInt (Layout::defaultW * sz), juce::roundToInt (Layout::defaultH * sz));
-                    break;
-                }
-                default: break;
+                pr.applyPreset (r - 100);
+                safe->syncPresetBox();
             }
+            else if (r >= 1000 && r < 1000 + n) pr.learnTarget.store (pr.learnTarget.load() == r - 1000 ? -1 : r - 1000);   // re-cliquer annule
+            else if (r >= 1100 && r < 1100 + n) pr.clearMidi ((MidiTarget) (r - 1100));
+            else if (r == 1200) pr.learnTarget.store (-1);
+            else if (r == 1201) { pr.learnTarget.store (-1); pr.resetMidiMap(); }
         });
 }
 

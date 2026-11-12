@@ -6,6 +6,7 @@
 #include <string>
 
 #include "NineHandsMenu.h"
+#include "NineHandsWindow.h"
 
 class SemitonesLook : public juce::LookAndFeel_V4
 {
@@ -70,6 +71,10 @@ private:
     uint32_t computeSegments() const;
     void stepAction (int dir);
     void showMenu (Hit h);
+public:
+    juce::PopupMenu buildContextMenu (int learnIdx = -1);   // menu clic droit (aussi pour l'outil de controle des menus)
+private:
+    juce::PopupMenu buildMenu (Hit h);
     juce::String statusText() const;
     void buildTexts();
     void rebuildCacheAt (float physicalScale);
@@ -83,6 +88,9 @@ private:
     SemitonesProcessor& proc;
     SemitonesLook look;
     NineHandsMenu::MenuLnf menuLnf;
+    NineHandsWindow::HostLock hostLock;    // fenetre du DAW : jamais sous 60 %, jamais au-dela de 150 %
+    double lastGlowReadMs = 0.0;
+    void setWindowFactor (float f);
     juce::Typeface::Ptr face;
     struct TextPath { juce::Path path; float depth; };    // vector texts of the mockup (units), debossed in the cache
     std::vector<TextPath> texts;

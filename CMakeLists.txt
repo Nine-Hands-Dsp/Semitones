@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Semitones VERSION 2.0.0 LANGUAGES C CXX)
+project(Semitones VERSION 2.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,8 +53,20 @@ juce_add_binary_data(SemitonesAssets SOURCES ${SEMITONES_ASSETS})
 set(SEMITONES_SOURCES
     PluginProcessor.cpp
     PluginEditor.cpp)
+# verrou de taille de la fenetre du DAW (jamais sous 60 %, jamais au-dela de 150 %)
+if(APPLE)
+  list(APPEND SEMITONES_SOURCES WindowMinSize.mm)
+else()
+  list(APPEND SEMITONES_SOURCES WindowMinSize.cpp)
+endif()
 
 target_sources(Semitones PRIVATE ${SEMITONES_SOURCES})
+if(APPLE)
+  target_link_libraries(Semitones PRIVATE "-framework Cocoa")
+endif()
+if(WIN32)
+  target_link_libraries(Semitones PRIVATE comctl32 user32)
+endif()
 
 set(SEMITONES_DEFS
     JUCE_WEB_BROWSER=0

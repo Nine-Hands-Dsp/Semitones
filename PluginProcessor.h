@@ -103,6 +103,8 @@ public:
 
     static const std::vector<FactoryPreset>& factoryPresets();
     int currentPreset = 0;
+    std::atomic<int> pendingProgram { -1 };      // Program Change recu (thread audio), applique par le timer
+    std::atomic<int> uiSizeIdx { -1 };           // taille choisie au menu pour ce projet (0..2), -1 = taille par defaut choisie
     std::atomic<int> glowPct { 100 };            // light halos (footswitch ring): 25 / 50 / 75 / 100 %
 
     // read-outs for the editor
