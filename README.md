@@ -2,8 +2,6 @@
 
 Réplique VST3 de la pédale **Solar Guitars CHUG Capo** : transposition de -12 à +12 demi-tons à très faible latence (« capodastre numérique »), mode **MIX** (signal transposé + signal direct, 0 à 100 %) et mémoire **FAV**. Format pédale simple, Windows et macOS. Design v2 : façade en aluminium brossé noir avec bandes usinées, afficheur bleu à matrice de points, textes vectoriels creusés dans le métal, anneau lumineux bleu (style Octopus) autour du footswitch, lumière en haut à gauche à 45°.
 
-![Semitones](docs/screenshot.png)
-
 - Notice (français) : `docs/Semitones_Notice_FR_v2.0.0.pdf`
 - Builds prêts à installer : onglet **Actions** > dernier run > artefacts `Semitones-VST3-Windows` / `Semitones-VST3-macOS`
 
